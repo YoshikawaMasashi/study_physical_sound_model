@@ -14,6 +14,19 @@ pub struct Hammer<T> {
     alpha: T,
 }
 
+impl<T: Zero> Hammer<T> {
+    pub fn new(initial_velocity: T, weight: T, p: T, K: T, alpha: T) -> Hammer<T> {
+        Hammer {
+            compression_felt: T::zero(),
+            velocity: initial_velocity,
+            weight,
+            p,
+            K,
+            alpha,
+        }
+    }
+}
+
 pub struct StringHammerConnection<'a, T> {
     strings: &'a mut Vec<String<T>>,
     hammer: &'a mut Hammer<T>,

@@ -8,6 +8,15 @@ pub struct Soundboard<T> {
     pub velocity: T,
 }
 
+impl<T: Zero> Soundboard<T> {
+    pub fn new(impedance: T) -> Soundboard<T> {
+        Soundboard {
+            impedance,
+            velocity: T::zero(),
+        }
+    }
+}
+
 pub struct StringSoundboardConnection<'a, T> {
     strings: &'a mut Vec<String<T>>,
     soundboard: &'a mut Soundboard<T>,

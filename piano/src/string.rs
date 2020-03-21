@@ -1,3 +1,4 @@
+use num_traits::cast::ToPrimitive;
 use num_traits::float::Float;
 use num_traits::identities::Zero;
 
@@ -11,13 +12,14 @@ pub struct DelayLine<T> {
     pub v_left_plus: T,
     pub next_v_left_minus: Option<T>,
     pub next_v_right_minus: Option<T>,
-    delay: usize,
+    to_right_delay: usize,
+    to_left_delay: usize,
     v_right_minus_history: RingBuffer<T>,
     v_left_minus_history: RingBuffer<T>,
 }
 
 impl<T: Clone + Copy + Float + Zero> DelayLine<T> {
-    fn new(delay: usize, init: T) -> DelayLine<T> {
+    fn new(to_right_delay: usize, to_left_delay: usize, init: T) -> DelayLine<T> {
         DelayLine {
             to_right_filters: vec![],
             to_left_filters: vec![],
@@ -25,14 +27,16 @@ impl<T: Clone + Copy + Float + Zero> DelayLine<T> {
             v_left_plus: init,
             next_v_left_minus: None,
             next_v_right_minus: None,
-            delay,
-            v_right_minus_history: RingBuffer::new(delay, init),
-            v_left_minus_history: RingBuffer::new(delay, init),
+            to_right_delay,
+            to_left_delay,
+            v_right_minus_history: RingBuffer::new(to_left_delay, init),
+            v_left_minus_history: RingBuffer::new(to_right_delay, init),
         }
     }
 
     fn new_with_filters(
-        delay: usize,
+        to_right_delay: usize,
+        to_left_delay: usize,
         init: T,
         to_right_filters: Vec<Filter<T>>,
         to_left_filters: Vec<Filter<T>>,
@@ -44,9 +48,10 @@ impl<T: Clone + Copy + Float + Zero> DelayLine<T> {
             v_left_plus: init,
             next_v_left_minus: None,
             next_v_right_minus: None,
-            delay,
-            v_right_minus_history: RingBuffer::new(delay, init),
-            v_left_minus_history: RingBuffer::new(delay, init),
+            to_right_delay,
+            to_left_delay,
+            v_right_minus_history: RingBuffer::new(to_left_delay, init),
+            v_left_minus_history: RingBuffer::new(to_right_delay, init),
         }
     }
 
@@ -89,7 +94,34 @@ pub struct String<T> {
     pub impedance: T,
 }
 
-impl<T: Clone + Copy + Float + Zero> String<T> {
+impl<T: Clone + Copy + Float + Zero + ToPrimitive> String<T> {
+    pub fn new(
+        note_frequency: T,
+        sample_frequency: T,
+        inpos: T,
+        c1: T,
+        c3: T,
+        B: T,
+        impedance: T,
+    ) -> String<T> {
+        let total_delay: T = sample_frequency / note_frequency;
+        let left_line_delay: T = inpos * total_delay * T::from(0.5).unwrap();
+        let right_line_delay = total_delay * T::from(0.5).unwrap() - left_line_delay;
+        let left_line_delay: usize = left_line_delay.to_usize().unwrap();
+        let right_line_delay: usize = right_line_delay.to_usize().unwrap();
+
+        // TODO: filter
+        String {
+            delay_line_left: DelayLine::new(left_line_delay, left_line_delay, T::from(0).unwrap()),
+            delay_line_right: DelayLine::new(
+                right_line_delay,
+                right_line_delay,
+                T::from(0).unwrap(),
+            ),
+            impedance,
+        }
+    }
+
     pub fn pin_update(&mut self) {
         self.delay_line_left.next_v_left_minus = Some(T::zero() - self.delay_line_left.v_left_plus);
     }
