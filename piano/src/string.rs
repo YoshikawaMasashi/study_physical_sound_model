@@ -64,7 +64,9 @@ impl<T: Clone + Copy + Float + Zero> DelayLine<T> {
         self.v_left_plus = next_v_left_plus;
     }
 
-    fn update(&mut self) {
+    pub fn update(&mut self) {
+        self.do_delay();
+
         if let Some(v) = self.next_v_left_minus {
             self.v_left_minus_history.push(v);
             self.next_v_left_minus = None;
@@ -88,7 +90,12 @@ pub struct String<T> {
 }
 
 impl<T: Clone + Copy + Float + Zero> String<T> {
-    fn pin_update(&mut self) {
+    pub fn pin_update(&mut self) {
         self.delay_line_left.next_v_left_minus = Some(T::zero() - self.delay_line_left.v_left_plus);
+    }
+
+    pub fn update(&mut self) {
+        self.delay_line_left.update();
+        self.delay_line_right.update();
     }
 }

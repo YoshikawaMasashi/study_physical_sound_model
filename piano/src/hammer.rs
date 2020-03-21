@@ -3,7 +3,7 @@ use num_traits::identities::Zero;
 
 use super::string::String;
 
-struct Hammer<T> {
+pub struct Hammer<T> {
     compression_felt: T,
     velocity: T,
     weight: T,
@@ -14,18 +14,25 @@ struct Hammer<T> {
     alpha: T,
 }
 
-struct StringHammerConnection<T> {
-    strings: Vec<String<T>>,
-    hammer: Hammer<T>,
+pub struct StringHammerConnection<'a, T> {
+    strings: &'a mut Vec<String<T>>,
+    hammer: &'a mut Hammer<T>,
 }
 
-impl<T: Clone + Copy + Float + Zero> StringHammerConnection<T> {
-    fn update_string_velocity(&mut self, dt: T) {
+impl<'a, T: Clone + Copy + Float + Zero> StringHammerConnection<'a, T> {
+    pub fn new(
+        strings: &'a mut Vec<String<T>>,
+        hammer: &'a mut Hammer<T>,
+    ) -> StringHammerConnection<'a, T> {
+        StringHammerConnection { strings, hammer }
+    }
+
+    pub fn update_string_velocity(&mut self, dt: T) {
         let force = self.calculate_force(dt);
         let string_velocity = self.calculate_average_string_velocity()
             + self.calculate_average_additional_string_velocity(force);
 
-        for string in &mut self.strings {
+        for string in self.strings.iter_mut() {
             string.delay_line_left.next_v_right_minus =
                 Some(string_velocity - string.delay_line_left.v_right_plus);
             string.delay_line_right.next_v_left_minus =
@@ -72,7 +79,7 @@ impl<T: Clone + Copy + Float + Zero> StringHammerConnection<T> {
 
     fn calculate_average_string_velocity(&self) -> T {
         let average_string_velocity = T::zero();
-        for string in &self.strings {
+        for string in self.strings.iter() {
             let average_string_velocity =
                 average_string_velocity + string.delay_line_left.v_right_plus;
             let average_string_velocity =
@@ -85,7 +92,7 @@ impl<T: Clone + Copy + Float + Zero> StringHammerConnection<T> {
 
     fn calculate_average_additional_string_velocity(&self, force: T) -> T {
         let average_additional_string_velocity = T::zero();
-        for string in &self.strings {
+        for string in self.strings.iter() {
             let average_additional_string_velocity =
                 average_additional_string_velocity + force / string.impedance;
         }
