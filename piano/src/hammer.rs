@@ -26,12 +26,10 @@ impl<T: Clone + Copy + Float + Zero> StringHammerConnection<T> {
             + self.calculate_average_additional_string_velocity(force);
 
         for string in &mut self.strings {
-            string
-                .delay_line_left
-                .right_update(string_velocity - string.delay_line_left.v_right_plus);
-            string
-                .delay_line_right
-                .left_update(string_velocity - string.delay_line_right.v_left_plus);
+            string.delay_line_left.next_v_right_minus =
+                Some(string_velocity - string.delay_line_left.v_right_plus);
+            string.delay_line_right.next_v_left_minus =
+                Some(string_velocity - string.delay_line_right.v_left_plus);
         }
     }
 

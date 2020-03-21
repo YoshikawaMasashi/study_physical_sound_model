@@ -18,9 +18,8 @@ impl<T: Clone + Copy + Float + Zero> StringSoundboardConnection<T> {
         let connection_velocity = self.calculate_connection_velocity();
 
         for string in &mut self.strings {
-            string
-                .delay_line_right
-                .right_update(connection_velocity - string.delay_line_right.v_right_plus);
+            string.delay_line_right.next_v_right_minus =
+                Some(connection_velocity - string.delay_line_right.v_right_plus);
         }
         self.soundboard.velocity = connection_velocity;
     }
