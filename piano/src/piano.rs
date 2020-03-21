@@ -6,7 +6,7 @@ use super::hammer::{Hammer, StringHammerConnection};
 use super::soundboard::{Soundboard, StringSoundboardConnection};
 use super::string::String;
 
-struct Piano<T> {
+pub struct Piano<T> {
     strings: Vec<String<T>>,
     hammer: Hammer<T>,
     soundboard: Soundboard<T>,
@@ -14,7 +14,7 @@ struct Piano<T> {
 }
 
 impl<T: Clone + Copy + Float + Zero + ToPrimitive> Piano<T> {
-    fn new(note: T, sample_frequency: T, initial_hammer_velocity: T) {
+    pub fn new(note: T, sample_frequency: T, initial_hammer_velocity: T) -> Piano<T> {
         let dt: f64 = 1.0 / sample_frequency.to_f64().unwrap();
         let note_frequency: f64 = 440.0 * f64::powf(2.0, (note.to_f64().unwrap() - 69.0) / 12.0);
 
@@ -83,24 +83,28 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive> Piano<T> {
                 T::from(Z).unwrap(),
             ));
         }
-        /*
-        for(int k=0;k<nstrings;k++) {
-            string[k] = new dwgs(f*TUNE[k],Fs,hp,c1,c3,B,Z,Zb+(nstrings-1)*Z,Zh);
+
+        let a: f64 = -1.0 / 4.0;
+        let mix: f64 = 1.0;
+        let alpha: f64 = 0.1e-4 * f64::ln(note_frequency / f0) / f64::ln(4192.0 / f0);
+        let mut hammer = Hammer::new(
+            initial_hammer_velocity,
+            T::from(m).unwrap(),
+            T::from(p).unwrap(),
+            T::from(K).unwrap(),
+            T::from(alpha).unwrap(),
+        );
+        let mut soundboard = Soundboard::new(T::from(Zb).unwrap());
+
+        Piano {
+            strings,
+            hammer,
+            soundboard,
+            dt: T::from(dt).unwrap(),
         }
-
-        float a = -1.0/4.0;
-        float mix = 1;
-        float alpha = 0.1e-4*log(f/f0)/log(4192/f0);
-        soundboard = new Reverb(c1b,c3b,a,mix,Fs);
-        hammer = new Hammer(f,Fs,m,K,p,Z,alpha,v0);
-
-        biquad(500.0,Fs,10,notch,&shaping1);
-        biquad(200.0,Fs,1.0,high,&shaping2);
-        biquad(800.0,Fs,1.0,low,&shaping3);
-        */
     }
 
-    fn next(&mut self) -> T {
+    pub fn next(&mut self) -> T {
         for string in self.strings.iter_mut() {
             string.pin_update();
         }
