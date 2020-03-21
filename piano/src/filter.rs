@@ -5,8 +5,8 @@ use super::ring_buffer::RingBuffer;
 
 pub struct Filter<T> {
     k: usize,
-    a: Vec<T>,
-    b: Vec<T>,
+    pub a: Vec<T>,
+    pub b: Vec<T>,
     x: RingBuffer<T>,
     y: RingBuffer<T>,
 }
@@ -19,8 +19,8 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
             k,
             a,
             b,
-            x: RingBuffer::new(k, T::zero()),
-            y: RingBuffer::new(k, T::zero()),
+            x: RingBuffer::new(k + 1, T::zero()),
+            y: RingBuffer::new(k + 1, T::zero()),
         }
     }
 

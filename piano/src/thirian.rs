@@ -56,7 +56,7 @@ pub fn thirian<T: Float + Zero + FloatConst>(D: T, N: usize) -> Filter<T> {
         }
         for n in 0..N + 1 {
             ak = ak * (D - T::from(N - n).unwrap());
-            ak = ak / (D - T::from(N - k).unwrap() - T::from(n).unwrap());
+            ak = ak / (D - T::from(N - k).unwrap() + T::from(n).unwrap());
         }
         a[k] = ak;
         b[N - k] = ak;
