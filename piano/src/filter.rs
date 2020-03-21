@@ -1,5 +1,5 @@
+use num_traits::float::Float;
 use num_traits::identities::Zero;
-use num_traits::Num;
 
 use super::ring_buffer::RingBuffer;
 
@@ -11,7 +11,7 @@ pub struct Filter<T> {
     y: RingBuffer<T>,
 }
 
-impl<T: Clone + Copy + Num + Zero> Filter<T> {
+impl<T: Clone + Copy + Float + Zero> Filter<T> {
     fn new(k: usize, a: Vec<T>, b: Vec<T>, init: T) -> Filter<T> {
         assert_eq!(k, a.len());
         assert_eq!(k, b.len());
