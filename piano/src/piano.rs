@@ -1,5 +1,5 @@
 use num_traits::cast::ToPrimitive;
-use num_traits::float::Float;
+use num_traits::float::{Float, FloatConst};
 use num_traits::identities::Zero;
 
 use super::hammer::{Hammer, StringHammerConnection};
@@ -13,7 +13,7 @@ pub struct Piano<T> {
     dt: T,
 }
 
-impl<T: Clone + Copy + Float + Zero + ToPrimitive> Piano<T> {
+impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst> Piano<T> {
     pub fn new(note: T, sample_frequency: T, initial_hammer_velocity: T) -> Piano<T> {
         let dt: f64 = 1.0 / sample_frequency.to_f64().unwrap();
         let note_frequency: f64 = 440.0 * f64::powf(2.0, (note.to_f64().unwrap() - 69.0) / 12.0);

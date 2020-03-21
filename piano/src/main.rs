@@ -4,6 +4,7 @@ mod piano;
 mod ring_buffer;
 mod soundboard;
 mod string;
+mod thirian;
 
 use hound;
 

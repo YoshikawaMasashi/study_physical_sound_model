@@ -1,9 +1,10 @@
 use num_traits::cast::ToPrimitive;
-use num_traits::float::Float;
+use num_traits::float::{Float, FloatConst};
 use num_traits::identities::Zero;
 
-use super::filter::Filter;
+use super::filter::{empty_filter, Filter};
 use super::ring_buffer::RingBuffer;
+use super::thirian::{thirian, thirian_dispersion};
 
 pub struct DelayLine<T> {
     to_right_filters: Vec<Filter<T>>,
@@ -18,7 +19,7 @@ pub struct DelayLine<T> {
     v_left_minus_history: RingBuffer<T>,
 }
 
-impl<T: Clone + Copy + Float + Zero> DelayLine<T> {
+impl<T: Clone + Copy + Float + Zero + FloatConst> DelayLine<T> {
     fn new(to_right_delay: usize, to_left_delay: usize, init: T) -> DelayLine<T> {
         DelayLine {
             to_right_filters: vec![],
@@ -94,7 +95,7 @@ pub struct String<T> {
     pub impedance: T,
 }
 
-impl<T: Clone + Copy + Float + Zero + ToPrimitive> String<T> {
+impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst> String<T> {
     pub fn new(
         note_frequency: T,
         sample_frequency: T,
@@ -110,13 +111,20 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive> String<T> {
         let left_line_delay: usize = left_line_delay.to_usize().unwrap();
         let right_line_delay: usize = right_line_delay.to_usize().unwrap();
 
-        // TODO: filter
+        let dispersion: Filter<T> = thirian_dispersion(B, note_frequency, 1);
+
         String {
             delay_line_left: DelayLine::new(left_line_delay, left_line_delay, T::from(0).unwrap()),
-            delay_line_right: DelayLine::new(
-                right_line_delay,
+            delay_line_right: DelayLine::new_with_filters(
+                right_line_delay
+                    - dispersion
+                        .groupdelay(note_frequency, sample_frequency)
+                        .to_usize()
+                        .unwrap(),
                 right_line_delay,
                 T::from(0).unwrap(),
+                vec![dispersion],
+                vec![],
             ),
             impedance,
         }
