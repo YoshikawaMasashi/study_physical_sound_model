@@ -91,12 +91,10 @@ impl<'a, T: Clone + Copy + Float + Zero> StringHammerConnection<'a, T> {
     }
 
     fn calculate_average_string_velocity(&self) -> T {
-        let average_string_velocity = T::zero();
+        let mut average_string_velocity = T::zero();
         for string in self.strings.iter() {
-            let average_string_velocity =
-                average_string_velocity + string.delay_line_left.v_right_plus;
-            let average_string_velocity =
-                average_string_velocity + string.delay_line_right.v_left_plus;
+            average_string_velocity = average_string_velocity + string.delay_line_left.v_right_plus;
+            average_string_velocity = average_string_velocity + string.delay_line_right.v_left_plus;
         }
         let average_string_velocity =
             average_string_velocity / T::from(self.strings.len()).unwrap();
@@ -104,9 +102,9 @@ impl<'a, T: Clone + Copy + Float + Zero> StringHammerConnection<'a, T> {
     }
 
     fn calculate_average_additional_string_velocity(&self, force: T) -> T {
-        let average_additional_string_velocity = T::zero();
+        let mut average_additional_string_velocity = T::zero();
         for string in self.strings.iter() {
-            let average_additional_string_velocity =
+            average_additional_string_velocity =
                 average_additional_string_velocity + force / string.impedance;
         }
         let average_additional_string_velocity =

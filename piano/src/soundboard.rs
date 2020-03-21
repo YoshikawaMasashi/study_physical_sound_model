@@ -43,12 +43,12 @@ impl<'a, T: Clone + Copy + Float + Zero> StringSoundboardConnection<'a, T> {
     }
 
     fn calculate_connection_velocity(&self) -> T {
-        let connection_velocity = T::zero();
-        let sum_of_impedance = T::zero();
+        let mut connection_velocity = T::zero();
+        let mut sum_of_impedance = T::zero();
         for string in self.strings.iter() {
-            let connection_velocity = connection_velocity
+            connection_velocity = connection_velocity
                 + T::from(2).unwrap() * string.impedance * string.delay_line_right.v_right_plus;
-            let sum_of_impedance = sum_of_impedance + string.impedance;
+            sum_of_impedance = sum_of_impedance + string.impedance;
         }
         let connection_velocity =
             connection_velocity / (sum_of_impedance + self.soundboard.impedance);
