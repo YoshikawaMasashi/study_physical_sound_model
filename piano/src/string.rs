@@ -149,8 +149,8 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
         String {
             delay_line_left: DelayLine::new(left_line_delay, left_line_delay, T::from(0).unwrap()),
             delay_line_right: DelayLine::new_with_filters(
-                right_line_delay - dispersion_delay.to_usize().unwrap(),
-                right_line_delay,
+                right_line_delay_to_right.to_usize().unwrap(),
+                right_line_delay_to_left.to_usize().unwrap(),
                 T::from(0).unwrap(),
                 dispersion,
                 vec![lowpass, fractional],
