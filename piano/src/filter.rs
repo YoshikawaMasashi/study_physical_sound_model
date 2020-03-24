@@ -4,7 +4,7 @@ use num_traits::identities::Zero;
 use super::ring_buffer::RingBuffer;
 
 pub struct Filter<T> {
-    k: usize,
+    pub n: usize,
     pub a: Vec<T>,
     pub b: Vec<T>,
     x: RingBuffer<T>,
@@ -12,15 +12,15 @@ pub struct Filter<T> {
 }
 
 impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
-    pub fn new(k: usize, a: Vec<T>, b: Vec<T>) -> Filter<T> {
-        assert_eq!(k + 1, a.len());
-        assert_eq!(k + 1, b.len());
+    pub fn new(n: usize, a: Vec<T>, b: Vec<T>) -> Filter<T> {
+        assert_eq!(n + 1, a.len());
+        assert_eq!(n + 1, b.len());
         Filter {
-            k,
+            n,
             a,
             b,
-            x: RingBuffer::new(k + 1, T::zero()),
-            y: RingBuffer::new(k + 1, T::zero()),
+            x: RingBuffer::new(n + 1, T::zero()),
+            y: RingBuffer::new(n + 1, T::zero()),
         }
     }
 
@@ -29,9 +29,11 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
         self.x.push(in_value);
         for (&x_, &b_) in self.x.iter().zip(self.b.iter()) {
             out_value = out_value + x_ * b_;
+            // println!("b: {}, x: {}", b_.to_f64().unwrap(), x_.to_f64().unwrap());
         }
-        for (&y_, &a_) in self.y.iter().take(self.k - 1).zip(self.a.iter().skip(1)) {
+        for (&y_, &a_) in self.y.iter().take(self.n).zip(self.a.iter().skip(1)) {
             out_value = out_value - y_ * a_;
+            // println!("a: {}, y: {}", a_.to_f64().unwrap(), y_.to_f64().unwrap());
         }
         out_value = out_value / self.a[0];
         self.y.push(out_value);
@@ -55,12 +57,12 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
         let mut H: [T; 2] = [T::zero(), T::zero()];
 
         let omega: T = T::from(2).unwrap() * T::PI() * note_frequency / sample_frequency;
-        let N: usize = self.k;
-        for k in 0..N {
+        let N: usize = self.n;
+        for k in 0..(N + 1) {
             Hn[0] = Hn[0] + T::cos(T::from(k).unwrap() * omega) * self.b[k];
             Hn[1] = Hn[1] + T::sin(T::from(k).unwrap() * omega) * self.b[k];
         }
-        for k in 0..N {
+        for k in 0..(N + 1) {
             Hd[0] = Hd[0] + T::cos(T::from(k).unwrap() * omega) * self.a[k];
             Hd[1] = Hd[1] + T::sin(T::from(k).unwrap() * omega) * self.a[k];
         }
@@ -81,7 +83,7 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
         let magd: T = T::sqrt(Hd[0] * Hd[0] + Hd[1] * Hd[1]);
         let argd: T = Hd[1].atan2(Hd[0]);
         let mag: T = magn / magd;
-        let arg: T = argn / argd;
+        let arg: T = argn - argd;
         H[0] = mag * T::cos(arg);
         H[1] = mag * T::sin(arg);
     }

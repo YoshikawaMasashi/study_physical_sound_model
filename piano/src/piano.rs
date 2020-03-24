@@ -13,7 +13,7 @@ pub struct Piano<T> {
     dt: T,
 }
 
-impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst> Piano<T> {
+impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Display> Piano<T> {
     pub fn new(note: T, sample_frequency: T, initial_hammer_velocity: T) -> Piano<T> {
         let dt: f64 = 1.0 / sample_frequency.to_f64().unwrap();
         let note_frequency: f64 = 440.0 * f64::powf(2.0, (note.to_f64().unwrap() - 69.0) / 12.0);

@@ -79,3 +79,21 @@ pub fn thirian_dispersion<T: Float + Zero + FloatConst>(B: T, f: T, M: usize) ->
         thirian(D, N)
     }
 }
+
+#[test]
+fn thirian_dispersion_work() {
+    let B: f64 = 0.000175;
+    let f: f64 = 261.520935;
+    let M: usize = 4;
+
+    let mut filter = thirian_dispersion(B, f, M);
+
+    assert_eq!(filter.a[0], 1.000000);
+    assert_eq!(filter.a[1], -1.2356172436816146);
+    assert_eq!(filter.a[2], 0.4083694427233187);
+    assert_eq!(filter.b[0], 0.4083694427233187);
+    assert_eq!(filter.b[1], -1.2356172436816146);
+    assert_eq!(filter.b[2], 1.000000);
+
+    assert_eq!(filter.groupdelay(261.520935, 44100.0), 6.849290787197244);
+}

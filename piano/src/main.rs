@@ -21,7 +21,7 @@ fn main() {
     let amplitude = i16::MAX as f32;
     for i in 0..44100 * 5 {
         writer
-            .write_sample((instrument.next() * amplitude) as i16)
+            .write_sample((30.0 * instrument.next() * amplitude) as i16)
             .unwrap();
     }
 }

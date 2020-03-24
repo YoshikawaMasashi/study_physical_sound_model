@@ -95,7 +95,7 @@ pub struct String<T> {
     pub impedance: T,
 }
 
-impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst> String<T> {
+impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Display> String<T> {
     pub fn new(
         note_frequency: T,
         sample_frequency: T,
@@ -111,20 +111,44 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst> String<T> {
         let left_line_delay: usize = left_line_delay.to_usize().unwrap();
         let right_line_delay: usize = right_line_delay.to_usize().unwrap();
 
-        let dispersion: Filter<T> = thirian_dispersion(B, note_frequency, 1);
+        let mut dispersion: Vec<Filter<T>> = vec![];
+        let mut dispersion_delay = T::from(0).unwrap();
+        let mut M: usize = if (note_frequency > T::from(400).unwrap()) {
+            1
+        } else {
+            4
+        };
+        for m in 0..M {
+            let dispersion_ = thirian_dispersion(B, note_frequency, M);
+            dispersion_delay =
+                dispersion_delay + dispersion_.groupdelay(note_frequency, sample_frequency);
+            dispersion.push(dispersion_);
+        }
+
+        let right_line_delay_to_right = T::from(right_line_delay).unwrap() - dispersion_delay;
+        let right_line_delay_to_left = T::from(right_line_delay).unwrap() - T::from(5).unwrap();
+
+        let tuning: T = (total_delay
+            - (T::from(left_line_delay).unwrap()
+                + T::from(left_line_delay).unwrap()
+                + right_line_delay_to_right
+                + right_line_delay_to_left
+                + dispersion_delay));
+        let fractional = thirian(tuning, tuning.to_usize().unwrap());
+
+        println!(
+            "total delay = {}, left delay = {}, right delay = {}, dispersion_delay = {}",
+            total_delay, left_line_delay, right_line_delay, dispersion_delay
+        );
 
         String {
             delay_line_left: DelayLine::new(left_line_delay, left_line_delay, T::from(0).unwrap()),
             delay_line_right: DelayLine::new_with_filters(
-                right_line_delay
-                    - dispersion
-                        .groupdelay(note_frequency, sample_frequency)
-                        .to_usize()
-                        .unwrap(),
+                right_line_delay - dispersion_delay.to_usize().unwrap(),
                 right_line_delay,
                 T::from(0).unwrap(),
-                vec![dispersion],
-                vec![],
+                dispersion,
+                vec![fractional],
             ),
             impedance,
         }
