@@ -1,5 +1,6 @@
 mod filter;
 mod hammer;
+mod loss;
 mod piano;
 mod ring_buffer;
 mod soundboard;

@@ -3,6 +3,7 @@ use num_traits::float::{Float, FloatConst};
 use num_traits::identities::Zero;
 
 use super::filter::{empty_filter, Filter};
+use super::loss::loss;
 use super::ring_buffer::RingBuffer;
 use super::thirian::{thirian, thirian_dispersion};
 
@@ -125,8 +126,12 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
             dispersion.push(dispersion_);
         }
 
+        let mut lowpass = loss(note_frequency, sample_frequency, c1, c3);
+        let lowpass_delay = lowpass.groupdelay(note_frequency, sample_frequency);
+
         let right_line_delay_to_right = T::from(right_line_delay).unwrap() - dispersion_delay;
-        let right_line_delay_to_left = T::from(right_line_delay).unwrap() - T::from(5).unwrap();
+        let right_line_delay_to_left =
+            T::from(right_line_delay).unwrap() - lowpass_delay - T::from(5).unwrap();
 
         let tuning: T = (total_delay
             - (T::from(left_line_delay).unwrap()
@@ -148,7 +153,7 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
                 right_line_delay,
                 T::from(0).unwrap(),
                 dispersion,
-                vec![fractional],
+                vec![lowpass, fractional],
             ),
             impedance,
         }
