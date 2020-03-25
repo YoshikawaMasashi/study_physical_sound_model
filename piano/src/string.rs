@@ -119,6 +119,7 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
         } else {
             4
         };
+        println!("B: {}, f: {}, M: {}", B, note_frequency, M);
         for m in 0..M {
             let dispersion_ = thirian_dispersion(B, note_frequency, M);
             dispersion_delay =
@@ -129,28 +130,45 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
         let mut lowpass = loss(note_frequency, sample_frequency, c1, c3);
         let lowpass_delay = lowpass.groupdelay(note_frequency, sample_frequency);
 
-        let right_line_delay_to_right = T::from(right_line_delay).unwrap() - dispersion_delay;
-        let right_line_delay_to_left =
-            T::from(right_line_delay).unwrap() - lowpass_delay - T::from(5).unwrap();
+        let right_line_delay_to_right = total_delay / T::from(2).unwrap()
+            - T::from(left_line_delay).unwrap()
+            - dispersion_delay;
+        let right_line_delay_to_right = right_line_delay_to_right.to_usize().unwrap();
+        let right_line_delay_to_left = total_delay / T::from(2).unwrap()
+            - T::from(left_line_delay).unwrap()
+            - lowpass_delay
+            - T::from(5).unwrap();
+        let right_line_delay_to_left = right_line_delay_to_left.to_usize().unwrap();
 
         let tuning: T = (total_delay
             - (T::from(left_line_delay).unwrap()
                 + T::from(left_line_delay).unwrap()
-                + right_line_delay_to_right
-                + right_line_delay_to_left
-                + dispersion_delay));
+                + T::from(right_line_delay_to_right).unwrap()
+                + T::from(right_line_delay_to_left).unwrap()
+                + dispersion_delay
+                + lowpass_delay));
         let fractional = thirian(tuning, tuning.to_usize().unwrap());
+        let tuningdelay = fractional.groupdelay(note_frequency, sample_frequency);
+        println!("D: {}", tuning.to_f64().unwrap());
 
         println!(
-            "total delay = {}, left delay = {}, right delay = {}, dispersion_delay = {}",
-            total_delay, left_line_delay, right_line_delay, dispersion_delay
+            "total delay = {}/{}, left delay = {} / {}, right delay = {} / {}, dispersion_delay = {}, lowpass delay = {}, fractional delay = {}/{}",
+            (T::from(left_line_delay).unwrap()
+                + T::from(left_line_delay).unwrap()
+                + T::from(right_line_delay_to_right).unwrap()
+                + T::from(right_line_delay_to_left).unwrap()
+                + dispersion_delay
+                + lowpass_delay + tuningdelay), total_delay,
+            left_line_delay, left_line_delay,
+            right_line_delay_to_right, right_line_delay_to_left,
+            dispersion_delay, lowpass_delay, tuningdelay, tuning
         );
 
         String {
             delay_line_left: DelayLine::new(left_line_delay, left_line_delay, T::from(0).unwrap()),
             delay_line_right: DelayLine::new_with_filters(
-                right_line_delay_to_right.to_usize().unwrap(),
-                right_line_delay_to_left.to_usize().unwrap(),
+                right_line_delay_to_right,
+                right_line_delay_to_left,
                 T::from(0).unwrap(),
                 dispersion,
                 vec![lowpass, fractional],
