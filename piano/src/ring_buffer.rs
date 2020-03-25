@@ -25,6 +25,10 @@ impl<T: Clone> RingBuffer<T> {
     pub fn last(&self) -> &T {
         &self.v[(self.i + self.n - 1) % self.n]
     }
+
+    pub fn first(&self) -> &T {
+        &self.v[self.i]
+    }
 }
 
 pub struct RingBufferIter<'a, T> {

@@ -7,18 +7,20 @@ pub struct Filter<T> {
     pub n: usize,
     pub a: Vec<T>,
     pub b: Vec<T>,
-    x: RingBuffer<T>,
-    y: RingBuffer<T>,
+    pub name: String,
+    pub x: RingBuffer<T>,
+    pub y: RingBuffer<T>,
 }
 
 impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
-    pub fn new(n: usize, a: Vec<T>, b: Vec<T>) -> Filter<T> {
+    pub fn new(n: usize, a: Vec<T>, b: Vec<T>, name: String) -> Filter<T> {
         assert_eq!(n + 1, a.len());
         assert_eq!(n + 1, b.len());
         Filter {
             n,
             a,
             b,
+            name,
             x: RingBuffer::new(n + 1, T::zero()),
             y: RingBuffer::new(n + 1, T::zero()),
         }
@@ -96,5 +98,5 @@ pub fn empty_filter<T: Float + Zero + FloatConst>() -> Filter<T> {
     a[0] = T::from(1).unwrap();
     b[0] = T::from(1).unwrap();
 
-    Filter::new(9, a, b)
+    Filter::new(9, a, b, String::from("empty"))
 }

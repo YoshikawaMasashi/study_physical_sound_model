@@ -106,6 +106,10 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
 
     pub fn next(&mut self) -> T {
         for string in self.strings.iter_mut() {
+            string.do_delay();
+        }
+
+        for string in self.strings.iter_mut() {
             string.pin_update();
         }
 

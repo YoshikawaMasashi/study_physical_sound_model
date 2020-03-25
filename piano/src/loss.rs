@@ -17,5 +17,5 @@ pub fn loss<T: Float + Zero + FloatConst>(f0: T, fs: T, c1: T, c3: T) -> Filter<
     a[0] = T::from(1).unwrap();
     a[1] = a1;
 
-    Filter::new(1, a, b)
+    Filter::new(1, a, b, String::from("loss"))
 }

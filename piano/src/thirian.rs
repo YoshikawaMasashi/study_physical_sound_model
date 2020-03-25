@@ -62,7 +62,7 @@ pub fn thirian<T: Float + Zero + FloatConst>(D: T, N: usize) -> Filter<T> {
         b[N - k] = ak;
     }
 
-    Filter::new(N, a, b)
+    Filter::new(N, a, b, String::from("thirian"))
 }
 
 pub fn thirian_dispersion<T: Float + Zero + FloatConst>(B: T, f: T, M: usize) -> Filter<T> {
@@ -74,7 +74,7 @@ pub fn thirian_dispersion<T: Float + Zero + FloatConst>(B: T, f: T, M: usize) ->
         let mut b = vec![T::zero(); N + 1];
         a[0] = T::from(1).unwrap();
         b[0] = T::from(1).unwrap();
-        Filter::new(N, a, b)
+        Filter::new(N, a, b, String::from("thirian_dispersion"))
     } else {
         thirian(D, N)
     }
@@ -96,4 +96,11 @@ fn thirian_dispersion_work() {
     assert_eq!(filter.b[2], 1.000000);
 
     assert_eq!(filter.groupdelay(261.520935, 44100.0), 6.849290787197244);
+}
+
+#[test]
+fn thirian_work() {
+    let D: f64 = 6.1712799072265625;
+
+    let mut filter = thirian(D, D as usize);
 }

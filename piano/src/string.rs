@@ -16,8 +16,8 @@ pub struct DelayLine<T> {
     pub next_v_right_minus: Option<T>,
     to_right_delay: usize,
     to_left_delay: usize,
-    v_right_minus_history: RingBuffer<T>,
-    v_left_minus_history: RingBuffer<T>,
+    pub v_right_minus_history: RingBuffer<T>,
+    pub v_left_minus_history: RingBuffer<T>,
 }
 
 impl<T: Clone + Copy + Float + Zero + FloatConst> DelayLine<T> {
@@ -57,31 +57,29 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> DelayLine<T> {
         }
     }
 
-    fn do_delay(&mut self) {
+    pub fn do_delay(&mut self) {
         let mut next_v_right_plus = *self.v_left_minus_history.last();
-        for filter in &mut self.to_right_filters {
-            next_v_right_plus = filter.filter(next_v_right_plus);
-        }
         self.v_right_plus = next_v_right_plus;
 
         let mut next_v_left_plus = *self.v_right_minus_history.last();
-        for filter in &mut self.to_left_filters {
-            next_v_left_plus = filter.filter(next_v_left_plus);
-        }
         self.v_left_plus = next_v_left_plus;
     }
 
     pub fn update(&mut self) {
-        self.do_delay();
-
-        if let Some(v) = self.next_v_left_minus {
+        if let Some(mut v) = self.next_v_left_minus {
+            for filter in &mut self.to_right_filters {
+                v = filter.filter(v);
+            }
             self.v_left_minus_history.push(v);
             self.next_v_left_minus = None;
         } else {
             panic!("no next_v_left_minus")
         }
 
-        if let Some(v) = self.next_v_right_minus {
+        if let Some(mut v) = self.next_v_right_minus {
+            for filter in &mut self.to_left_filters {
+                v = filter.filter(v);
+            }
             self.v_right_minus_history.push(v);
             self.next_v_right_minus = None;
         } else {
@@ -127,7 +125,7 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
             dispersion.push(dispersion_);
         }
 
-        let mut lowpass = loss(note_frequency, sample_frequency, c1, c3);
+        let lowpass = loss(note_frequency, sample_frequency, c1, c3);
         let lowpass_delay = lowpass.groupdelay(note_frequency, sample_frequency);
 
         let right_line_delay_to_right = total_delay / T::from(2).unwrap()
@@ -179,6 +177,11 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
 
     pub fn pin_update(&mut self) {
         self.delay_line_left.next_v_left_minus = Some(T::zero() - self.delay_line_left.v_left_plus);
+    }
+
+    pub fn do_delay(&mut self) {
+        self.delay_line_left.do_delay();
+        self.delay_line_right.do_delay();
     }
 
     pub fn update(&mut self) {
