@@ -2,6 +2,7 @@ mod filter;
 mod hammer;
 mod loss;
 mod piano;
+mod reproduction;
 mod ring_buffer;
 mod soundboard;
 mod string;
