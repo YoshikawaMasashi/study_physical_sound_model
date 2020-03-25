@@ -42,12 +42,18 @@ struct DWG {
     alphal: Vec<f32>,
     alphar: Vec<f32>,
     d: [RingBuffer<f32>; 2],
-    parent: Rc<RefCell<DWGs>>,
+    filters: Rc<RefCell<DWGFilters>>,
     commute: bool,
 }
 
 impl DWG {
-    fn new(z: f32, del1: usize, del2: usize, commute: bool, parent: Rc<RefCell<DWGs>>) -> DWG {
+    fn new(
+        z: f32,
+        del1: usize,
+        del2: usize,
+        commute: bool,
+        filters: Rc<RefCell<DWGFilters>>,
+    ) -> DWG {
         let d = [
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
@@ -75,7 +81,7 @@ impl DWG {
             alphal: vec![],
             alphar: vec![],
             d,
-            parent,
+            filters,
             commute,
         }
     }
@@ -158,31 +164,36 @@ impl DWG {
     fn update(&mut self) {
         let mut a = self.loadl - self.l.borrow().a[0];
         if (self.commute) {
-            for m in 0..self.parent.borrow().M {
-                a = self.parent.borrow_mut().dispersion[m].filter(a);
+            let M = self.filters.borrow().dispersion.len();
+            for m in 0..M {
+                a = self.filters.borrow_mut().dispersion[m].filter(a);
             }
         }
         self.l.borrow_mut().a[1] = a;
 
         a = self.loadr - self.r.borrow().a[1];
         if (self.commute) {
-            a = self.parent.borrow_mut().lowpass.filter(a);
-            a = self.parent.borrow_mut().fracdelay.filter(a);
+            a = self.filters.borrow_mut().lowpass.filter(a);
+            a = self.filters.borrow_mut().fracdelay.filter(a);
         }
         self.r.borrow_mut().a[0] = a;
     }
 }
 
-struct DWGs {
+pub struct DWGFilters {
     dispersion: Vec<Filter<f32>>,
     lowpass: Filter<f32>,
     fracdelay: Filter<f32>,
+}
+
+pub struct DWGs {
+    filters: Rc<RefCell<DWGFilters>>,
     M: usize,
-    d: Option<[DWG; 4]>,
+    d: [DWG; 4],
 }
 
 impl DWGs {
-    fn new(
+    pub fn new(
         f: f32,
         Fs: f32,
         inpos: f32,
@@ -192,7 +203,7 @@ impl DWGs {
         Z: f32,
         Zb: f32,
         Zh: f32,
-    ) -> Rc<RefCell<DWGs>> {
+    ) -> DWGs {
         let deltot = Fs / f;
         let mut del1 = (inpos * 0.5 * deltot) as usize;
         if (del1 < 2) {
@@ -232,18 +243,16 @@ impl DWGs {
             del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay,D
         );
 
-        let ret_dwgs = Rc::new(RefCell::new(DWGs {
+        let filters = Rc::new(RefCell::new(DWGFilters {
             dispersion,
             lowpass,
             fracdelay,
-            M,
-            d: None,
         }));
 
-        let mut d0 = DWG::new(Z, del1, del1, false, Rc::clone(&ret_dwgs));
-        let mut d1 = DWG::new(Z, del2, del3, true, Rc::clone(&ret_dwgs));
-        let mut d2 = DWG::new(Zb, 0, 0, false, Rc::clone(&ret_dwgs));
-        let mut d3 = DWG::new(Zh, 0, 0, false, Rc::clone(&ret_dwgs));
+        let mut d0 = DWG::new(Z, del1, del1, false, Rc::clone(&filters));
+        let mut d1 = DWG::new(Z, del2, del3, true, Rc::clone(&filters));
+        let mut d2 = DWG::new(Zb, 0, 0, false, Rc::clone(&filters));
+        let mut d3 = DWG::new(Zh, 0, 0, false, Rc::clone(&filters));
 
         d0.connect_right(Rc::clone(&d1.l));
         d1.connect_left(Rc::clone(&d0.r));
@@ -260,32 +269,35 @@ impl DWGs {
         d2.init();
         d3.init();
 
-        ret_dwgs.borrow_mut().d = Some([d0, d1, d2, d3]);
-        ret_dwgs
+        DWGs {
+            filters: Rc::clone(&filters),
+            M,
+            d: [d0, d1, d2, d3],
+        }
     }
 
-    fn input_velocity(&self) -> f32 {
-        self.d.as_ref().unwrap()[1].l.borrow().a[0] + self.d.as_ref().unwrap()[0].r.borrow().a[1]
+    pub fn input_velocity(&self) -> f32 {
+        self.d[1].l.borrow().a[0] + self.d[0].r.borrow().a[1]
     }
 
-    fn go_hammer(&mut self, load: f32) -> f32 {
-        self.d.as_ref().unwrap()[3].l.borrow_mut().load = load;
+    pub fn go_hammer(&mut self, load: f32) -> f32 {
+        self.d[3].l.borrow_mut().load = load;
         for k in 0..2 {
-            self.d.as_mut().unwrap()[k].do_delay();
+            self.d[k].do_delay();
         }
-        self.d.as_ref().unwrap()[1].r.borrow().a[1]
+        self.d[1].r.borrow().a[1]
     }
 
-    fn go_soundboard(&mut self, load: f32) -> f32 {
-        self.d.as_mut().unwrap()[2].l.borrow_mut().load = load;
+    pub fn go_soundboard(&mut self, load: f32) -> f32 {
+        self.d[2].l.borrow_mut().load = load;
         for k in 0..3 {
-            self.d.as_mut().unwrap()[k].do_load();
+            self.d[k].do_load();
         }
 
         for k in 0..3 {
-            self.d.as_mut().unwrap()[k].update();
+            self.d[k].update();
         }
 
-        self.d.as_ref().unwrap()[2].l.borrow().a[1]
+        self.d[2].l.borrow().a[1]
     }
 }
