@@ -15,7 +15,7 @@ delay = np.array([
 ])
 omega = np.array([
     1, 0.99, 1.01, 1
-]) * 2 * np.pi
+]) * 2 * np.pi * 2  # BPM = 120
 
 theta_seq = np.zeros((0, n))
 init_theta = np.array([0, 2, 1, 3])
@@ -24,7 +24,7 @@ sigma = 0.5
 
 t = 0
 eps = 0.001
-sec = 20
+sec = 30
 for i in range(int(sec / eps)):
     t += eps
     if i <= 100:
