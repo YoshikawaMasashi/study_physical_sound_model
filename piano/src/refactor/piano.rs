@@ -33,7 +33,6 @@ impl Piano {
         let hp = 1.0 / 7.0;
         let z = f32::sqrt(t * rho_l);
         let zb = 4000.0;
-        let zh = 0.0;
 
         println!(
             "f = {}, r = {} mm, L = {}, T = {}, hammer = {}, Z = {}, k = {}, B = {}",
@@ -68,7 +67,6 @@ impl Piano {
                 b,
                 z,
                 zb + (nstrings - 1) as f32 * z,
-                zh,
             ));
         }
 

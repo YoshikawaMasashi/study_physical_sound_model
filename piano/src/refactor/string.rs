@@ -122,20 +122,16 @@ impl DelayLine {
     }
 
     fn do_load(&mut self) {
-        if self.nl == 0 {
-            self.loadl = 0.0;
-        } else {
-            self.loadl = self.alphalthis * self.l.borrow().a[0];
+        if self.nl > 0 {
+            self.loadl += self.alphalthis * self.l.borrow().a[0];
             for k in 0..self.nl {
                 self.loadl += self.cl[k].borrow().load;
                 self.loadl += self.alphal[k] * self.cl[k].borrow().a[1];
             }
         }
 
-        if self.nr == 0 {
-            self.loadr = 0.0;
-        } else {
-            self.loadr = self.alpharthis * self.r.borrow().a[1];
+        if self.nr > 0 {
+            self.loadr += self.alpharthis * self.r.borrow().a[1];
             for k in 0..self.nr {
                 self.loadr += self.cr[k].borrow().load;
                 self.loadr += self.alphar[k] * self.cr[k].borrow().a[0];
@@ -159,6 +155,9 @@ impl DelayLine {
             a = self.filters.borrow_mut().fracdelay.filter(a);
         }
         self.r.borrow_mut().a[0] = a;
+
+        self.loadl = 0.0;
+        self.loadr = 0.0;
     }
 }
 
@@ -172,7 +171,6 @@ pub struct String {
     left_string: DelayLine,
     right_string: DelayLine,
     soundboard: DelayLine,
-    hammer: DelayLine,
 }
 
 impl String {
@@ -185,7 +183,6 @@ impl String {
         b: f32,
         z: f32,
         zb: f32, // board
-        zh: f32, // hammer
     ) -> String {
         let deltot = fs / f;
         let mut del1 = (inpos * 0.5 * deltot) as usize;
@@ -235,25 +232,18 @@ impl String {
         let mut left_string = DelayLine::new(z, del1, del1, false, Rc::clone(&filters));
         let mut right_string = DelayLine::new(z, del2, del3, true, Rc::clone(&filters));
         let mut soundboard = DelayLine::new(zb, 0, 0, false, Rc::clone(&filters));
-        let mut hammer = DelayLine::new(zh, 0, 0, false, Rc::clone(&filters));
 
         left_string.connect_right(Rc::clone(&right_string.l));
         right_string.connect_left(Rc::clone(&left_string.r));
         right_string.connect_right(Rc::clone(&soundboard.l));
         soundboard.connect_left(Rc::clone(&right_string.r));
 
-        left_string.connect_right(Rc::clone(&hammer.l));
-        right_string.connect_left(Rc::clone(&hammer.l));
-        hammer.connect_left(Rc::clone(&left_string.r));
-        hammer.connect_left(Rc::clone(&right_string.l));
-
         left_string.init();
         right_string.init();
         soundboard.init();
-        hammer.init();
 
         String {
-            left_string,right_string,soundboard,hammer
+            left_string,right_string,soundboard
         }
     }
 
@@ -262,14 +252,16 @@ impl String {
     }
 
     pub fn go_hammer(&mut self, load: f32) -> f32 {
-        self.hammer.l.borrow_mut().load = load;
+        self.left_string.loadr += load;
+        self.right_string.loadl += load;
+        
         self.left_string.do_delay();
         self.right_string.do_delay();
         self.right_string.r.borrow().a[1]
     }
 
     pub fn go_soundboard(&mut self, load: f32) -> f32 {
-        self.soundboard.l.borrow_mut().load = load;
+        self.right_string.loadr += load;
 
         self.left_string.do_load();
         self.right_string.do_load();
