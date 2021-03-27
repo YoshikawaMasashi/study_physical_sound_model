@@ -54,22 +54,21 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
     }
 
     fn phasedelay(&self, note_frequency: T, sample_frequency: T) -> T {
-        let mut Hn: [T; 2] = [T::zero(), T::zero()];
-        let mut Hd: [T; 2] = [T::zero(), T::zero()];
-        let mut H: [T; 2] = [T::zero(), T::zero()];
+        let mut hn: [T; 2] = [T::zero(), T::zero()];
+        let mut hd: [T; 2] = [T::zero(), T::zero()];
+        let mut h: [T; 2] = [T::zero(), T::zero()];
 
         let omega: T = T::from(2).unwrap() * T::PI() * note_frequency / sample_frequency;
-        let N: usize = self.n;
-        for k in 0..(N + 1) {
-            Hn[0] = Hn[0] + T::cos(T::from(k).unwrap() * omega) * self.b[k];
-            Hn[1] = Hn[1] + T::sin(T::from(k).unwrap() * omega) * self.b[k];
+        for k in 0..(self.n + 1) {
+            hn[0] = hn[0] + T::cos(T::from(k).unwrap() * omega) * self.b[k];
+            hn[1] = hn[1] + T::sin(T::from(k).unwrap() * omega) * self.b[k];
         }
-        for k in 0..(N + 1) {
-            Hd[0] = Hd[0] + T::cos(T::from(k).unwrap() * omega) * self.a[k];
-            Hd[1] = Hd[1] + T::sin(T::from(k).unwrap() * omega) * self.a[k];
+        for k in 0..(self.n + 1) {
+            hd[0] = hd[0] + T::cos(T::from(k).unwrap() * omega) * self.a[k];
+            hd[1] = hd[1] + T::sin(T::from(k).unwrap() * omega) * self.a[k];
         }
-        self.complex_divide(&Hn, &Hd, &mut H);
-        let arg: T = H[1].atan2(H[0]);
+        self.complex_divide(&hn, &hd, &mut h);
+        let arg: T = h[1].atan2(h[0]);
         let arg: T = if arg < T::zero() {
             arg + T::from(2).unwrap() * T::PI()
         } else {
@@ -79,24 +78,14 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> Filter<T> {
         return arg / omega;
     }
 
-    fn complex_divide(&self, Hn: &[T; 2], Hd: &[T; 2], H: &mut [T; 2]) {
-        let magn: T = T::sqrt(Hn[0] * Hn[0] + Hn[1] * Hn[1]);
-        let argn: T = Hn[1].atan2(Hn[0]);
-        let magd: T = T::sqrt(Hd[0] * Hd[0] + Hd[1] * Hd[1]);
-        let argd: T = Hd[1].atan2(Hd[0]);
+    fn complex_divide(&self, hn: &[T; 2], hd: &[T; 2], h: &mut [T; 2]) {
+        let magn: T = T::sqrt(hn[0] * hn[0] + hn[1] * hn[1]);
+        let argn: T = hn[1].atan2(hn[0]);
+        let magd: T = T::sqrt(hd[0] * hd[0] + hd[1] * hd[1]);
+        let argd: T = hd[1].atan2(hd[0]);
         let mag: T = magn / magd;
         let arg: T = argn - argd;
-        H[0] = mag * T::cos(arg);
-        H[1] = mag * T::sin(arg);
+        h[0] = mag * T::cos(arg);
+        h[1] = mag * T::sin(arg);
     }
-}
-
-pub fn empty_filter<T: Float + Zero + FloatConst>() -> Filter<T> {
-    let mut a = vec![T::zero(); 10];
-    let mut b = vec![T::zero(); 10];
-
-    a[0] = T::from(1).unwrap();
-    b[0] = T::from(1).unwrap();
-
-    Filter::new(9, a, b, String::from("empty"))
 }

@@ -8,7 +8,7 @@ fn combinations(n: u64, k: u64) -> u64 {
     let mut multiplier: u64 = n;
     let mut answer: u64 = 1;
     let k = std::cmp::min(k, n - k);
-    while (divisor <= k) {
+    while divisor <= k {
         answer = (answer * multiplier) / divisor;
         multiplier -= 1;
         divisor += 1;
@@ -22,7 +22,7 @@ fn db<T: Float>(b: T, f: T, m: usize) -> T {
     let k1: T;
     let k2: T;
     let k3: T;
-    if (m == 4) {
+    if m == 4 {
         c1 = T::from(0.069618).unwrap();
         c2 = T::from(2.0427).unwrap();
         k1 = T::from(-0.00050469).unwrap();
@@ -69,7 +69,7 @@ pub fn thirian_dispersion<T: Float + Zero + FloatConst>(b: T, f: T, m: usize) ->
     let n: usize = 2;
     let d: T = db(b, f, m);
 
-    if (d <= T::from(1.0).unwrap()) {
+    if d <= T::from(1.0).unwrap() {
         let mut a1 = vec![T::zero(); n + 1];
         let mut a2 = vec![T::zero(); n + 1];
         a1[0] = T::from(1).unwrap();

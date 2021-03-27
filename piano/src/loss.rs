@@ -3,7 +3,7 @@ use num_traits::identities::Zero;
 
 use super::filter::Filter;
 
-pub fn loss<T: Float + Zero + FloatConst>(f0: T, fs: T, c1: T, c3: T) -> Filter<T> {
+pub fn loss<T: Float + Zero + FloatConst>(f0: T, c1: T, c3: T) -> Filter<T> {
     let mut a = vec![T::zero(); 2];
     let mut b = vec![T::zero(); 2];
 
