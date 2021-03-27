@@ -31,7 +31,11 @@ impl Hammer {
         }
     }
 
-    pub fn calculate_force(&mut self, vin: f32, impedance: f32) -> f32 {
+    pub fn calculate_force(
+        &mut self,
+        dual_force_of_input_without_hammer_force: f32,
+        sum_of_impedance_at_junction: f32,
+    ) -> f32 {
         let mut up: f32 = if self.x > 0.0 {
             f32::powf(self.x, self.p)
         } else {
@@ -47,7 +51,11 @@ impl Hammer {
             }
             self.a = -self.f * self.mi;
             v1 = self.v + self.a * self.dt;
-            x1 = self.x + (v1 - (vin + self.f / (2.0 * impedance))) * self.dt;
+            x1 = self.x
+                + (v1
+                    - (dual_force_of_input_without_hammer_force + self.f)
+                        / (sum_of_impedance_at_junction))
+                    * self.dt;
             up = if x1 > 0.0 { f32::powf(x1, self.p) } else { 0.0 };
             dupdt = (up - self.upprev) * self.dti;
         }

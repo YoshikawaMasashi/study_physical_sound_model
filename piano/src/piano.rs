@@ -90,14 +90,7 @@ impl Piano {
 
         let mut hammers: Vec<Hammer> = vec![];
         for _ in 0..nstrings {
-            hammers.push(Hammer::new(
-                sample_rate,
-                m,
-                k,
-                p,
-                alpha,
-                v0,
-            ));
+            hammers.push(Hammer::new(sample_rate, m, k, p, alpha, v0));
         }
         Piano {
             string_impedance,
@@ -167,11 +160,6 @@ impl Piano {
         (left_string, right_string)
     }
 
-    fn input_velocity(&self, string_idx: usize) -> f32 {
-        self.right_strings[string_idx].v_at_left_to_left
-            + self.left_strings[string_idx].v_at_right_to_right
-    }
-
     fn do_delay(&mut self, string_idx: usize) {
         self.left_strings[string_idx].do_delay();
         self.right_strings[string_idx].do_delay();
@@ -187,9 +175,14 @@ impl Piano {
         let mut dual_force_of_input_at_string_hammer: Vec<f32> = vec![];
         // calculate dual_force_of_input
         for i in 0..self.nstrings {
-            let vin = self.input_velocity(i);
-            let hammer_force = self.hammers[i].calculate_force(vin, self.string_impedance);
-            dual_force_of_input_at_string_hammer.push(2.0 * self.string_impedance * vin + hammer_force);
+            let vin =
+                self.right_strings[i].v_at_left_to_left + self.left_strings[i].v_at_right_to_right;
+            let hammer_force = self.hammers[i].calculate_force(
+                2.0 * self.string_impedance * vin,
+                2.0 * self.string_impedance,
+            );
+            dual_force_of_input_at_string_hammer
+                .push(2.0 * self.string_impedance * vin + hammer_force);
         }
         for i in 0..self.nstrings {
             dual_force_of_input_at_string_soundboard +=
