@@ -33,16 +33,12 @@ pub struct String {
     pub v_at_right_to_left: f32,
     pub v_at_left_to_right: f32,
     pub v_at_right_to_right: f32,
-    pub loadl: f32,
-    pub loadr: f32,
-    pub impedance: f32,
     to_left_delay_line: DelayLine,
     to_right_delay_line: DelayLine,
 }
 
 impl String {
     pub fn new(
-        impedance: f32,
         del1: usize,
         del2: usize,
         left_filters: Vec<Filter<f32>>,
@@ -53,9 +49,6 @@ impl String {
             v_at_right_to_left: 0.0,
             v_at_left_to_right: 0.0,
             v_at_right_to_right: 0.0,
-            loadl: 0.0,
-            loadr: 0.0,
-            impedance,
             to_left_delay_line: DelayLine::new(del1, left_filters),
             to_right_delay_line: DelayLine::new(del2, right_filters),
         }
