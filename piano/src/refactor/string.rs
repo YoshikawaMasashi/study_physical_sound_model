@@ -8,17 +8,12 @@ use super::super::thirian::{thirian, thirian_dispersion};
 
 struct StringNode {
     z: f32,      // インピーダンス
-    load: f32,   // 力の単位で入っているっぽい
     a: [f32; 2], // たぶんvelocity 0: rightからleftに行く方向 1: leftからrightに行く方向
 }
 
 impl StringNode {
     fn new(z: f32) -> StringNode {
-        StringNode {
-            z,
-            load: 0.0,
-            a: [0.0, 0.0],
-        }
+        StringNode { z, a: [0.0, 0.0] }
     }
 }
 
@@ -227,13 +222,10 @@ impl StringHammerSoundboard {
         self.right_string.loadr += load;
 
         self.left_string.loadr += self.left_string.alpharthis * self.left_string.r.borrow().a[1];
-        self.left_string.loadr += self.left_string.cr[0].borrow().load;
-        self.left_string.loadr += self.left_string.alphar[0] * self.left_string.cr[0].borrow().a[0];
+        self.left_string.loadr += self.left_string.alphar[0] * self.right_string.l.borrow().a[0];
 
         self.right_string.loadl += self.right_string.alphalthis * self.right_string.l.borrow().a[0];
-        self.right_string.loadl += self.right_string.cl[0].borrow().load;
-        self.right_string.loadl +=
-            self.right_string.alphal[0] * self.right_string.cl[0].borrow().a[1];
+        self.right_string.loadl += self.right_string.alphal[0] * self.left_string.r.borrow().a[1];
 
         let a = self.left_string.loadl - self.left_string.l.borrow().a[0];
         self.left_string.l.borrow_mut().a[1] = a;
