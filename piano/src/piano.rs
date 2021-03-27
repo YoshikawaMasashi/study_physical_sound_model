@@ -1,7 +1,7 @@
-use super::super::loss::loss;
-use super::super::thirian::{thirian, thirian_dispersion};
 use super::hammer::Hammer;
+use super::loss::loss;
 use super::string::String;
+use super::thirian::{thirian, thirian_dispersion};
 
 pub struct StringHammerSoundboard {
     left_string: String,

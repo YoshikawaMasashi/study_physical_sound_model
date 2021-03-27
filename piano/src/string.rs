@@ -1,5 +1,5 @@
-use super::super::filter::Filter;
-use super::super::ring_buffer::RingBuffer;
+use super::filter::Filter;
+use super::ring_buffer::RingBuffer;
 
 struct DelayLine {
     history_buffer: RingBuffer<f32>,
