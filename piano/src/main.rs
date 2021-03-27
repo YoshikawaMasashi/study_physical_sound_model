@@ -1,19 +1,14 @@
 mod filter;
-mod hammer;
 mod loss;
-mod piano;
-mod reproduction;
 mod refactor;
 mod ring_buffer;
-mod soundboard;
-mod string;
 mod thirian;
 
 use hound;
 
 fn main() {
     let mut instrument: refactor::piano::Piano =
-    refactor::piano::Piano::new(60, 44100.0, 5.0, 44100 * 3);
+        refactor::piano::Piano::new(60, 44100.0, 5.0, 44100 * 3);
     let spec = hound::WavSpec {
         channels: 1,
         sample_rate: 44100,
