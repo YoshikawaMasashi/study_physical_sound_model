@@ -61,7 +61,7 @@ impl<T: Clone + Copy + Float + Zero + FloatConst> DelayLine<T> {
         let mut next_v_right_plus = *self.v_left_minus_history.last();
         self.v_right_plus = next_v_right_plus;
 
-        let mut next_v_left_plus = *self.v_right_minus_history.last();
+        let next_v_left_plus = *self.v_right_minus_history.last();
         self.v_left_plus = next_v_left_plus;
     }
 
@@ -112,7 +112,7 @@ impl<T: Clone + Copy + Float + Zero + ToPrimitive + FloatConst + std::fmt::Displ
 
         let mut dispersion: Vec<Filter<T>> = vec![];
         let mut dispersion_delay = T::from(0).unwrap();
-        let mut M: usize = if (note_frequency > T::from(400).unwrap()) {
+        let M: usize = if (note_frequency > T::from(400).unwrap()) {
             1
         } else {
             4
