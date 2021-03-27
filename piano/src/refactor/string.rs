@@ -6,6 +6,7 @@ use super::super::loss::loss;
 use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
+
 struct StringNode {
     z: f32, // インピーダンス
     load: f32, // 力の単位で入っているっぽい
@@ -113,49 +114,22 @@ impl String {
     }
 
     fn do_delay(&mut self) {
-        let dar: f32 = *self.d[0].last();
-        let dal: f32 = *self.d[1].last();
+        let mut dar: f32 = *self.d[0].last();
+        let mut dal: f32 = *self.d[1].last();
+        
+        let filter_num = self.left_filters.len();
+        for i in 0..filter_num {
+            dar = self.left_filters[i].filter(dar);
+        }
+        let filter_num = self.right_filters.len();
+        for i in 0..filter_num {
+            dal = self.right_filters[i].filter(dal);
+        }
+
         self.l.borrow_mut().a[0] = dar;
         self.r.borrow_mut().a[1] = dal;
         self.d[0].push(self.r.borrow().a[0]);
         self.d[1].push(self.l.borrow().a[1]);
-    }
-
-    fn do_load(&mut self) {
-        if self.nl > 0 {
-            self.loadl += self.alphalthis * self.l.borrow().a[0];
-            for k in 0..self.nl {
-                self.loadl += self.cl[k].borrow().load;
-                self.loadl += self.alphal[k] * self.cl[k].borrow().a[1];
-            }
-        }
-
-        if self.nr > 0 {
-            self.loadr += self.alpharthis * self.r.borrow().a[1];
-            for k in 0..self.nr {
-                self.loadr += self.cr[k].borrow().load;
-                self.loadr += self.alphar[k] * self.cr[k].borrow().a[0];
-            }
-        }
-    }
-
-    fn update(&mut self) {
-        let mut a = self.loadl - self.l.borrow().a[0];
-        let filter_num = self.left_filters.len();
-        for i in 0..filter_num {
-            a = self.left_filters[i].filter(a);
-        }
-        self.l.borrow_mut().a[1] = a;
-
-        a = self.loadr - self.r.borrow().a[1];
-        let filter_num = self.right_filters.len();
-        for i in 0..filter_num {
-            a = self.right_filters[i].filter(a);
-        }
-        self.r.borrow_mut().a[0] = a;
-
-        self.loadl = 0.0;
-        self.loadr = 0.0;
     }
 }
 
@@ -252,11 +226,31 @@ impl StringHammerSoundboard {
     pub fn go_soundboard(&mut self, load: f32) -> f32 {
         self.right_string.loadr += load;
 
-        self.left_string.do_load();
-        self.right_string.do_load();
+        self.left_string.loadr += self.left_string.alpharthis * self.left_string.r.borrow().a[1];
+        for k in 0..self.left_string.nr {
+            self.left_string.loadr += self.left_string.cr[k].borrow().load;
+            self.left_string.loadr += self.left_string.alphar[k] * self.left_string.cr[k].borrow().a[0];
+        }
 
-        self.left_string.update();
-        self.right_string.update();
+        self.right_string.loadl += self.right_string.alphalthis * self.right_string.l.borrow().a[0];
+        for k in 0..self.right_string.nl {
+            self.right_string.loadl += self.right_string.cl[k].borrow().load;
+            self.right_string.loadl += self.right_string.alphal[k] * self.right_string.cl[k].borrow().a[1];
+        }
+
+        let a = self.left_string.loadl - self.left_string.l.borrow().a[0];
+        self.left_string.l.borrow_mut().a[1] = a;
+        let a = self.left_string.loadr - self.left_string.r.borrow().a[1];
+        self.left_string.r.borrow_mut().a[0] = a;
+        
+        let a = self.right_string.loadl - self.right_string.l.borrow().a[0];
+        self.right_string.l.borrow_mut().a[1] = a;
+        let a = self.right_string.loadr - self.right_string.r.borrow().a[1];
+        self.right_string.r.borrow_mut().a[0] = a;
+
+        self.right_string.loadl = 0.0;
+        self.right_string.loadr = 0.0;
+        self.left_string.loadr = 0.0;
 
         self.right_string.r.borrow().a[1] * 2.0 * self.right_string.impedance / self.soundboard_impedance
     }
