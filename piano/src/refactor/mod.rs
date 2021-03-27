@@ -1,3 +1,3 @@
-mod dwgs;
+mod string;
 mod hammer;
 pub mod piano;

@@ -1,4 +1,4 @@
-use super::dwgs::DWGs;
+use super::string::Strings;
 use super::hammer::Hammer;
 
 pub struct Piano {
@@ -6,7 +6,7 @@ pub struct Piano {
     zb: f32,
 
     nstrings: usize,
-    string: Vec<DWGs>,
+    string: Vec<Strings>,
     hammers: Vec<Hammer>,
 }
 
@@ -59,7 +59,7 @@ impl Piano {
         let mut string = vec![];
         const TUNE: [f32; 3] = [1.0, 1.0003, 0.9996];
         for i in 0..nstrings {
-            string.push(DWGs::new(
+            string.push(Strings::new(
                 f * TUNE[i],
                 fs,
                 hp,

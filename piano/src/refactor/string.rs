@@ -22,7 +22,7 @@ impl DWGNode {
     }
 }
 
-struct DWG {
+struct String {
     nl: usize,
     nr: usize,
     cl: Vec<Rc<RefCell<DWGNode>>>, // cはconnectのl
@@ -36,18 +36,18 @@ struct DWG {
     alphal: Vec<f32>,
     alphar: Vec<f32>,
     d: [RingBuffer<f32>; 2],
-    filters: Rc<RefCell<DWGFilters>>,
+    filters: Rc<RefCell<StringsFilters>>,
     commute: bool,
 }
 
-impl DWG {
+impl String {
     fn new(
         z: f32,
         del1: usize,
         del2: usize,
         commute: bool,
-        filters: Rc<RefCell<DWGFilters>>,
-    ) -> DWG {
+        filters: Rc<RefCell<StringsFilters>>,
+    ) -> String {
         let d = [
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
@@ -55,7 +55,7 @@ impl DWG {
         let l = Rc::new(RefCell::new(DWGNode::new(z)));
         let r = Rc::new(RefCell::new(DWGNode::new(z)));
 
-        DWG {
+        String {
             nl: 0,
             nr: 0,
             cl: vec![],
@@ -154,17 +154,17 @@ impl DWG {
     }
 }
 
-pub struct DWGFilters {
+pub struct StringsFilters {
     dispersion: Vec<Filter<f32>>,
     lowpass: Filter<f32>,
     fracdelay: Filter<f32>,
 }
 
-pub struct DWGs {
-    d: [DWG; 4],
+pub struct Strings {
+    d: [String; 4],
 }
 
-impl DWGs {
+impl Strings {
     pub fn new(
         f: f32,
         fs: f32,
@@ -175,7 +175,7 @@ impl DWGs {
         z: f32,
         zb: f32,
         zh: f32,
-    ) -> DWGs {
+    ) -> Strings {
         let deltot = fs / f;
         let mut del1 = (inpos * 0.5 * deltot) as usize;
         if del1 < 2 {
@@ -215,16 +215,16 @@ impl DWGs {
             del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, total_delay
         );
 
-        let filters = Rc::new(RefCell::new(DWGFilters {
+        let filters = Rc::new(RefCell::new(StringsFilters {
             dispersion,
             lowpass,
             fracdelay,
         }));
 
-        let mut d0 = DWG::new(z, del1, del1, false, Rc::clone(&filters));
-        let mut d1 = DWG::new(z, del2, del3, true, Rc::clone(&filters));
-        let mut d2 = DWG::new(zb, 0, 0, false, Rc::clone(&filters));
-        let mut d3 = DWG::new(zh, 0, 0, false, Rc::clone(&filters));
+        let mut d0 = String::new(z, del1, del1, false, Rc::clone(&filters));
+        let mut d1 = String::new(z, del2, del3, true, Rc::clone(&filters));
+        let mut d2 = String::new(zb, 0, 0, false, Rc::clone(&filters));
+        let mut d3 = String::new(zh, 0, 0, false, Rc::clone(&filters));
 
         d0.connect_right(Rc::clone(&d1.l));
         d1.connect_left(Rc::clone(&d0.r));
@@ -241,7 +241,7 @@ impl DWGs {
         d2.init();
         d3.init();
 
-        DWGs {
+        Strings {
             d: [d0, d1, d2, d3],
         }
     }
