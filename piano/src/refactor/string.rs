@@ -6,15 +6,15 @@ use super::super::loss::loss;
 use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
-struct DWGNode {
+struct DelayLineNode {
     z: f32,
     load: f32,
     a: [f32; 2],
 }
 
-impl DWGNode {
-    fn new(z: f32) -> DWGNode {
-        DWGNode {
+impl DelayLineNode {
+    fn new(z: f32) -> DelayLineNode {
+        DelayLineNode {
             z,
             load: 0.0,
             a: [0.0, 0.0],
@@ -22,13 +22,13 @@ impl DWGNode {
     }
 }
 
-struct String {
+struct DelayLine {
     nl: usize,
     nr: usize,
-    cl: Vec<Rc<RefCell<DWGNode>>>, // cはconnectのl
-    cr: Vec<Rc<RefCell<DWGNode>>>,
-    l: Rc<RefCell<DWGNode>>,
-    r: Rc<RefCell<DWGNode>>,
+    cl: Vec<Rc<RefCell<DelayLineNode>>>, // cはconnectのl
+    cr: Vec<Rc<RefCell<DelayLineNode>>>,
+    l: Rc<RefCell<DelayLineNode>>,
+    r: Rc<RefCell<DelayLineNode>>,
     loadl: f32,
     loadr: f32,
     alphalthis: f32,
@@ -36,26 +36,26 @@ struct String {
     alphal: Vec<f32>,
     alphar: Vec<f32>,
     d: [RingBuffer<f32>; 2],
-    filters: Rc<RefCell<StringsFilters>>,
+    filters: Rc<RefCell<Filters>>,
     commute: bool,
 }
 
-impl String {
+impl DelayLine {
     fn new(
         z: f32,
         del1: usize,
         del2: usize,
         commute: bool,
-        filters: Rc<RefCell<StringsFilters>>,
-    ) -> String {
+        filters: Rc<RefCell<Filters>>,
+    ) -> DelayLine {
         let d = [
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
         ];
-        let l = Rc::new(RefCell::new(DWGNode::new(z)));
-        let r = Rc::new(RefCell::new(DWGNode::new(z)));
+        let l = Rc::new(RefCell::new(DelayLineNode::new(z)));
+        let r = Rc::new(RefCell::new(DelayLineNode::new(z)));
 
-        String {
+        DelayLine {
             nl: 0,
             nr: 0,
             cl: vec![],
@@ -94,12 +94,12 @@ impl String {
         }
     }
 
-    fn connect_left(&mut self, l: Rc<RefCell<DWGNode>>) {
+    fn connect_left(&mut self, l: Rc<RefCell<DelayLineNode>>) {
         self.cl.push(l);
         self.nl += 1;
     }
 
-    fn connect_right(&mut self, r: Rc<RefCell<DWGNode>>) {
+    fn connect_right(&mut self, r: Rc<RefCell<DelayLineNode>>) {
         self.cr.push(r);
         self.nr += 1;
     }
@@ -154,17 +154,17 @@ impl String {
     }
 }
 
-pub struct StringsFilters {
+pub struct Filters {
     dispersion: Vec<Filter<f32>>,
     lowpass: Filter<f32>,
     fracdelay: Filter<f32>,
 }
 
-pub struct Strings {
-    d: [String; 4],
+pub struct String {
+    d: [DelayLine; 4],
 }
 
-impl Strings {
+impl String {
     pub fn new(
         f: f32,
         fs: f32,
@@ -175,7 +175,7 @@ impl Strings {
         z: f32,
         zb: f32,
         zh: f32,
-    ) -> Strings {
+    ) -> String {
         let deltot = fs / f;
         let mut del1 = (inpos * 0.5 * deltot) as usize;
         if del1 < 2 {
@@ -215,16 +215,16 @@ impl Strings {
             del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, total_delay
         );
 
-        let filters = Rc::new(RefCell::new(StringsFilters {
+        let filters = Rc::new(RefCell::new(Filters {
             dispersion,
             lowpass,
             fracdelay,
         }));
 
-        let mut d0 = String::new(z, del1, del1, false, Rc::clone(&filters));
-        let mut d1 = String::new(z, del2, del3, true, Rc::clone(&filters));
-        let mut d2 = String::new(zb, 0, 0, false, Rc::clone(&filters));
-        let mut d3 = String::new(zh, 0, 0, false, Rc::clone(&filters));
+        let mut d0 = DelayLine::new(z, del1, del1, false, Rc::clone(&filters));
+        let mut d1 = DelayLine::new(z, del2, del3, true, Rc::clone(&filters));
+        let mut d2 = DelayLine::new(zb, 0, 0, false, Rc::clone(&filters));
+        let mut d3 = DelayLine::new(zh, 0, 0, false, Rc::clone(&filters));
 
         d0.connect_right(Rc::clone(&d1.l));
         d1.connect_left(Rc::clone(&d0.r));
@@ -241,7 +241,7 @@ impl Strings {
         d2.init();
         d3.init();
 
-        Strings {
+        String {
             d: [d0, d1, d2, d3],
         }
     }

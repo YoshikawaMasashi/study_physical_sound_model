@@ -1,4 +1,4 @@
-use super::string::Strings;
+use super::string::String;
 use super::hammer::Hammer;
 
 pub struct Piano {
@@ -6,7 +6,7 @@ pub struct Piano {
     zb: f32,
 
     nstrings: usize,
-    string: Vec<Strings>,
+    strings: Vec<String>,
     hammers: Vec<Hammer>,
 }
 
@@ -56,10 +56,10 @@ impl Piano {
         } else {
             3
         };
-        let mut string = vec![];
+        let mut strings = vec![];
         const TUNE: [f32; 3] = [1.0, 1.0003, 0.9996];
         for i in 0..nstrings {
-            string.push(Strings::new(
+            strings.push(String::new(
                 f * TUNE[i],
                 fs,
                 hp,
@@ -83,26 +83,22 @@ impl Piano {
             zb,
 
             nstrings,
-            string,
+            strings,
             hammers,
         }
     }
 
     pub fn go(&mut self) -> f32 {
-        let mut hloads: Vec<f32> = vec![];
-        for i in 0..self.nstrings {
-            hloads.push(self.hammers[i].load(self.string[i].input_velocity() as f32));
-        }
-
         let mut load = 0.0;
         for i in 0..self.nstrings {
-            load += (2.0 * self.z * self.string[i].go_hammer(hloads[i] / (2.0 * self.z)))
+            let hload = self.hammers[i].load(self.strings[i].input_velocity() as f32);
+            load += (2.0 * self.z * self.strings[i].go_hammer(hload / (2.0 * self.z)))
                 / (self.z * self.nstrings as f32 + self.zb);
         }
 
         let mut output = 0.0;
         for i in 0..self.nstrings {
-            output += self.string[i].go_soundboard(load);
+            output += self.strings[i].go_soundboard(load);
         }
 
         output
