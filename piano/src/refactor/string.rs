@@ -6,19 +6,9 @@ use super::super::loss::loss;
 use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
-struct StringNode {
-    a: [f32; 2], // たぶんvelocity 0: rightからleftに行く方向 1: leftからrightに行く方向
-}
-
-impl StringNode {
-    fn new() -> StringNode {
-        StringNode { a: [0.0, 0.0] }
-    }
-}
-
 struct String {
-    l: Rc<RefCell<StringNode>>,
-    r: Rc<RefCell<StringNode>>,
+    l: Rc<RefCell<[f32; 2]>>,
+    r: Rc<RefCell<[f32; 2]>>,
     loadl: f32,
     loadr: f32,
     d: [RingBuffer<f32>; 2],
@@ -39,8 +29,8 @@ impl String {
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
         ];
-        let l = Rc::new(RefCell::new(StringNode::new()));
-        let r = Rc::new(RefCell::new(StringNode::new()));
+        let l = Rc::new(RefCell::new([0.0, 0.0]));
+        let r = Rc::new(RefCell::new([0.0, 0.0]));
 
         String {
             l,
@@ -67,10 +57,10 @@ impl String {
             dal = self.right_filters[i].filter(dal);
         }
 
-        self.l.borrow_mut().a[0] = dar;
-        self.r.borrow_mut().a[1] = dal;
-        self.d[0].push(self.r.borrow().a[0]);
-        self.d[1].push(self.l.borrow().a[1]);
+        self.l.borrow_mut()[0] = dar;
+        self.r.borrow_mut()[1] = dal;
+        self.d[0].push(self.r.borrow()[0]);
+        self.d[1].push(self.l.borrow()[1]);
     }
 }
 
@@ -149,7 +139,7 @@ impl StringHammerSoundboard {
     }
 
     pub fn input_velocity(&self) -> f32 {
-        self.right_string.l.borrow().a[0] + self.left_string.r.borrow().a[1]
+        self.right_string.l.borrow()[0] + self.left_string.r.borrow()[1]
     }
 
     pub fn go_hammer(&mut self, load: f32) -> f32 {
@@ -158,33 +148,33 @@ impl StringHammerSoundboard {
 
         self.left_string.do_delay();
         self.right_string.do_delay();
-        self.right_string.r.borrow().a[1]
+        self.right_string.r.borrow()[1]
     }
 
     pub fn go_soundboard(&mut self, load: f32) -> f32 {
         self.right_string.loadr += load;
 
-        self.left_string.loadr += self.left_string.r.borrow().a[1];
-        self.left_string.loadr += self.right_string.l.borrow().a[0];
+        self.left_string.loadr += self.left_string.r.borrow()[1];
+        self.left_string.loadr += self.right_string.l.borrow()[0];
 
-        self.right_string.loadl += self.right_string.l.borrow().a[0];
-        self.right_string.loadl += self.left_string.r.borrow().a[1];
+        self.right_string.loadl += self.right_string.l.borrow()[0];
+        self.right_string.loadl += self.left_string.r.borrow()[1];
 
-        let a = self.left_string.loadl - self.left_string.l.borrow().a[0];
-        self.left_string.l.borrow_mut().a[1] = a;
-        let a = self.left_string.loadr - self.left_string.r.borrow().a[1];
-        self.left_string.r.borrow_mut().a[0] = a;
+        let a = self.left_string.loadl - self.left_string.l.borrow()[0];
+        self.left_string.l.borrow_mut()[1] = a;
+        let a = self.left_string.loadr - self.left_string.r.borrow()[1];
+        self.left_string.r.borrow_mut()[0] = a;
 
-        let a = self.right_string.loadl - self.right_string.l.borrow().a[0];
-        self.right_string.l.borrow_mut().a[1] = a;
-        let a = self.right_string.loadr - self.right_string.r.borrow().a[1];
-        self.right_string.r.borrow_mut().a[0] = a;
+        let a = self.right_string.loadl - self.right_string.l.borrow()[0];
+        self.right_string.l.borrow_mut()[1] = a;
+        let a = self.right_string.loadr - self.right_string.r.borrow()[1];
+        self.right_string.r.borrow_mut()[0] = a;
 
         self.right_string.loadl = 0.0;
         self.right_string.loadr = 0.0;
         self.left_string.loadr = 0.0;
 
-        self.right_string.r.borrow().a[1] * 2.0 * self.right_string.impedance
+        self.right_string.r.borrow()[1] * 2.0 * self.right_string.impedance
             / self.soundboard_impedance
     }
 }
