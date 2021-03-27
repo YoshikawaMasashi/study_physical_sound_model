@@ -34,8 +34,10 @@ impl DelayLine {
 }
 
 struct String {
-    l: Rc<RefCell<[f32; 2]>>,
-    r: Rc<RefCell<[f32; 2]>>,
+    v_at_left_to_left: f32, // l[0]
+    v_at_right_to_left: f32, // r[0]
+    v_at_left_to_right: f32, // l[1]
+    v_at_right_to_right: f32, // r[1]
     loadl: f32,
     loadr: f32,
     impedance: f32,
@@ -51,12 +53,11 @@ impl String {
         left_filters: Vec<Filter<f32>>,
         right_filters: Vec<Filter<f32>>,
     ) -> String {
-        let l = Rc::new(RefCell::new([0.0, 0.0]));
-        let r = Rc::new(RefCell::new([0.0, 0.0]));
-
         String {
-            l,
-            r,
+            v_at_left_to_left: 0.0,
+            v_at_right_to_left: 0.0,
+            v_at_left_to_right: 0.0,
+            v_at_right_to_right: 0.0,
             loadl: 0.0,
             loadr: 0.0,
             impedance,
@@ -66,8 +67,8 @@ impl String {
     }
 
     fn do_delay(&mut self) {
-        self.l.borrow_mut()[0] = self.to_left_delay_line.do_delay(self.r.borrow()[0]);
-        self.r.borrow_mut()[1] = self.to_right_delay_line.do_delay(self.l.borrow()[1]);
+        self.v_at_left_to_left = self.to_left_delay_line.do_delay(self.v_at_right_to_left);
+        self.v_at_right_to_right = self.to_right_delay_line.do_delay(self.v_at_left_to_right);
     }
 }
 
@@ -118,20 +119,19 @@ impl StringHammerSoundboard {
             del3 = 1;
         }
 
-        let total_delay = deltot
+        let fracdelay_delay = deltot
             - (del1 as f32
                 + del1 as f32
                 + del2 as f32
                 + del3 as f32
                 + dispersion_delay
                 + lowpass_delay);
-        println!("D: {}", total_delay);
-        let fracdelay = thirian(total_delay, total_delay as usize);
-        right_filters.push(thirian(total_delay, total_delay as usize));
+        let fracdelay = thirian(fracdelay_delay, fracdelay_delay as usize);
+        right_filters.push(thirian(fracdelay_delay, fracdelay_delay as usize));
         let tuning_delay = fracdelay.groupdelay(f, fs);
 
         println!("total delay = {}/{}, leftdel = {}/{}, rightdel = {}/{}, dispersion delay = {}, lowpass delay = {}, fractional delay = {}/{}",
-            del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, total_delay
+            del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, fracdelay_delay
         );
 
         let left_string = String::new(z, del1, del1, vec![], vec![]);
@@ -146,7 +146,7 @@ impl StringHammerSoundboard {
     }
 
     pub fn input_velocity(&self) -> f32 {
-        self.right_string.l.borrow()[0] + self.left_string.r.borrow()[1]
+        self.right_string.v_at_left_to_left + self.left_string.v_at_right_to_right
     }
 
     pub fn go_hammer(&mut self, load: f32) -> f32 {
@@ -155,33 +155,33 @@ impl StringHammerSoundboard {
 
         self.left_string.do_delay();
         self.right_string.do_delay();
-        self.right_string.r.borrow()[1]
+        self.right_string.v_at_right_to_right
     }
 
     pub fn go_soundboard(&mut self, load: f32) -> f32 {
         self.right_string.loadr += load;
 
-        self.left_string.loadr += self.left_string.r.borrow()[1];
-        self.left_string.loadr += self.right_string.l.borrow()[0];
+        self.left_string.loadr += self.left_string.v_at_right_to_right;
+        self.left_string.loadr += self.right_string.v_at_left_to_left;
 
-        self.right_string.loadl += self.right_string.l.borrow()[0];
-        self.right_string.loadl += self.left_string.r.borrow()[1];
+        self.right_string.loadl += self.right_string.v_at_left_to_left;
+        self.right_string.loadl += self.left_string.v_at_right_to_right;
 
-        let a = self.left_string.loadl - self.left_string.l.borrow()[0];
-        self.left_string.l.borrow_mut()[1] = a;
-        let a = self.left_string.loadr - self.left_string.r.borrow()[1];
-        self.left_string.r.borrow_mut()[0] = a;
+        let a = self.left_string.loadl - self.left_string.v_at_left_to_left;
+        self.left_string.v_at_left_to_right = a;
+        let a = self.left_string.loadr - self.left_string.v_at_right_to_right;
+        self.left_string.v_at_right_to_left = a;
 
-        let a = self.right_string.loadl - self.right_string.l.borrow()[0];
-        self.right_string.l.borrow_mut()[1] = a;
-        let a = self.right_string.loadr - self.right_string.r.borrow()[1];
-        self.right_string.r.borrow_mut()[0] = a;
+        let a = self.right_string.loadl - self.right_string.v_at_left_to_left;
+        self.right_string.v_at_left_to_right = a;
+        let a = self.right_string.loadr - self.right_string.v_at_right_to_right;
+        self.right_string.v_at_right_to_left = a;
 
         self.right_string.loadl = 0.0;
         self.right_string.loadr = 0.0;
         self.left_string.loadr = 0.0;
 
-        self.right_string.r.borrow()[1] * 2.0 * self.right_string.impedance
+        self.right_string.v_at_right_to_right * 2.0 * self.right_string.impedance
             / self.soundboard_impedance
     }
 }
