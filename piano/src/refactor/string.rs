@@ -6,15 +6,15 @@ use super::super::loss::loss;
 use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
-struct DelayLineNode {
+struct StringNode {
     z: f32, // インピーダンス
     load: f32, // 力の単位で入っているっぽい
     a: [f32; 2], // たぶんvelocity 0: rightからleftに行く方向 1: leftからrightに行く方向
 }
 
-impl DelayLineNode {
-    fn new(z: f32) -> DelayLineNode {
-        DelayLineNode {
+impl StringNode {
+    fn new(z: f32) -> StringNode {
+        StringNode {
             z,
             load: 0.0,
             a: [0.0, 0.0],
@@ -22,15 +22,15 @@ impl DelayLineNode {
     }
 }
 
-struct DelayLine {
+struct String {
     nl: usize,
     nr: usize,
-    cl: Vec<Rc<RefCell<DelayLineNode>>>, // cはconnectのl
-    cr: Vec<Rc<RefCell<DelayLineNode>>>,
+    cl: Vec<Rc<RefCell<StringNode>>>, // cはconnectのl
+    cr: Vec<Rc<RefCell<StringNode>>>,
     zl: Vec<f32>,
     zr: Vec<f32>,
-    l: Rc<RefCell<DelayLineNode>>,
-    r: Rc<RefCell<DelayLineNode>>,
+    l: Rc<RefCell<StringNode>>,
+    r: Rc<RefCell<StringNode>>,
     loadl: f32,
     loadr: f32,
     alphalthis: f32,
@@ -43,22 +43,22 @@ struct DelayLine {
     right_filters: Vec<Filter<f32>>,
 }
 
-impl DelayLine {
+impl String {
     fn new(
         impedance: f32,
         del1: usize,
         del2: usize,
         left_filters: Vec<Filter<f32>>,
         right_filters: Vec<Filter<f32>>,
-    ) -> DelayLine {
+    ) -> String {
         let d = [
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
         ];
-        let l = Rc::new(RefCell::new(DelayLineNode::new(impedance)));
-        let r = Rc::new(RefCell::new(DelayLineNode::new(impedance)));
+        let l = Rc::new(RefCell::new(StringNode::new(impedance)));
+        let r = Rc::new(RefCell::new(StringNode::new(impedance)));
 
-        DelayLine {
+        String {
             nl: 0,
             nr: 0,
             cl: vec![],
@@ -100,13 +100,13 @@ impl DelayLine {
         }
     }
 
-    fn connect_left(&mut self, l: Rc<RefCell<DelayLineNode>>) {
+    fn connect_left(&mut self, l: Rc<RefCell<StringNode>>) {
         self.zl.push(l.borrow().z);
         self.cl.push(l);
         self.nl += 1;
     }
 
-    fn connect_right(&mut self, r: Rc<RefCell<DelayLineNode>>) {
+    fn connect_right(&mut self, r: Rc<RefCell<StringNode>>) {
         self.zr.push(r.borrow().z);
         self.cr.push(r);
         self.nr += 1;
@@ -159,13 +159,13 @@ impl DelayLine {
     }
 }
 
-pub struct String {
-    left_string: DelayLine,
-    right_string: DelayLine,
+pub struct StringHammerSoundboard {
+    left_string: String,
+    right_string: String,
     soundboard_impedance: f32
 }
 
-impl String {
+impl StringHammerSoundboard {
     pub fn new(
         f: f32,
         fs: f32,
@@ -175,7 +175,7 @@ impl String {
         b: f32,
         z: f32,
         zb: f32, // board
-    ) -> String {
+    ) -> StringHammerSoundboard {
         let deltot = fs / f;
         let mut del1 = (inpos * 0.5 * deltot) as usize;
         if del1 < 2 {
@@ -221,8 +221,8 @@ impl String {
             del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, total_delay
         );
 
-        let mut left_string = DelayLine::new(z, del1, del1, vec![], vec![]);
-        let mut right_string = DelayLine::new(z, del2, del3, left_filters, right_filters);
+        let mut left_string = String::new(z, del1, del1, vec![], vec![]);
+        let mut right_string = String::new(z, del2, del3, left_filters, right_filters);
 
         left_string.connect_right(Rc::clone(&right_string.l));
         right_string.connect_left(Rc::clone(&left_string.r));
@@ -230,7 +230,7 @@ impl String {
         left_string.init();
         right_string.init();
 
-        String {
+        StringHammerSoundboard {
             left_string,right_string,
             soundboard_impedance: zb,
         }

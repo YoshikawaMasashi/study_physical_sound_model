@@ -1,4 +1,4 @@
-use super::string::String;
+use super::string::StringHammerSoundboard;
 use super::hammer::Hammer;
 
 pub struct Piano {
@@ -6,7 +6,7 @@ pub struct Piano {
     zb: f32,
 
     nstrings: usize,
-    strings: Vec<String>,
+    strings: Vec<StringHammerSoundboard>,
     hammers: Vec<Hammer>,
 }
 
@@ -58,7 +58,7 @@ impl Piano {
         let mut strings = vec![];
         const TUNE: [f32; 3] = [1.0, 1.0003, 0.9996];
         for i in 0..nstrings {
-            strings.push(String::new(
+            strings.push(StringHammerSoundboard::new(
                 f * TUNE[i],
                 fs,
                 hp,
