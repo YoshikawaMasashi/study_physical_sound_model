@@ -7,31 +7,20 @@ use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
 struct StringNode {
-    z: f32,      // インピーダンス
     a: [f32; 2], // たぶんvelocity 0: rightからleftに行く方向 1: leftからrightに行く方向
 }
 
 impl StringNode {
-    fn new(z: f32) -> StringNode {
-        StringNode { z, a: [0.0, 0.0] }
+    fn new() -> StringNode {
+        StringNode { a: [0.0, 0.0] }
     }
 }
 
 struct String {
-    nl: usize,
-    nr: usize,
-    cl: Vec<Rc<RefCell<StringNode>>>, // cはconnectのl
-    cr: Vec<Rc<RefCell<StringNode>>>,
-    zl: Vec<f32>,
-    zr: Vec<f32>,
     l: Rc<RefCell<StringNode>>,
     r: Rc<RefCell<StringNode>>,
     loadl: f32,
     loadr: f32,
-    alphalthis: f32,
-    alpharthis: f32,
-    alphal: Vec<f32>,
-    alphar: Vec<f32>,
     d: [RingBuffer<f32>; 2],
     impedance: f32,
     left_filters: Vec<Filter<f32>>,
@@ -50,61 +39,19 @@ impl String {
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
         ];
-        let l = Rc::new(RefCell::new(StringNode::new(impedance)));
-        let r = Rc::new(RefCell::new(StringNode::new(impedance)));
+        let l = Rc::new(RefCell::new(StringNode::new()));
+        let r = Rc::new(RefCell::new(StringNode::new()));
 
         String {
-            nl: 0,
-            nr: 0,
-            cl: vec![],
-            cr: vec![],
-            zl: vec![],
-            zr: vec![],
             l,
             r,
             loadl: 0.0,
             loadr: 0.0,
-            alphalthis: 0.0,
-            alpharthis: 0.0,
-            alphal: vec![],
-            alphar: vec![],
             d,
             impedance,
             left_filters,
             right_filters,
         }
-    }
-
-    fn init(&mut self) {
-        let mut ztot: f32 = self.l.borrow().z;
-        for k in 0..self.nl {
-            ztot += self.cl[k].borrow().z;
-        }
-        self.alphalthis = 2.0 * self.l.borrow().z / ztot;
-        for k in 0..self.nl {
-            self.alphal.push(2.0 * self.cl[k].borrow().z / ztot);
-        }
-
-        ztot = self.r.borrow().z;
-        for k in 0..self.nr {
-            ztot += self.cr[k].borrow().z;
-        }
-        self.alpharthis = 2.0 * self.r.borrow().z / ztot;
-        for k in 0..self.nr {
-            self.alphar.push(2.0 * self.cr[k].borrow().z / ztot);
-        }
-    }
-
-    fn connect_left(&mut self, l: Rc<RefCell<StringNode>>) {
-        self.zl.push(l.borrow().z);
-        self.cl.push(l);
-        self.nl += 1;
-    }
-
-    fn connect_right(&mut self, r: Rc<RefCell<StringNode>>) {
-        self.zr.push(r.borrow().z);
-        self.cr.push(r);
-        self.nr += 1;
     }
 
     fn do_delay(&mut self) {
@@ -130,6 +77,7 @@ impl String {
 pub struct StringHammerSoundboard {
     left_string: String,
     right_string: String,
+    // string_impedance: f32,
     soundboard_impedance: f32,
 }
 
@@ -189,18 +137,13 @@ impl StringHammerSoundboard {
             del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, total_delay
         );
 
-        let mut left_string = String::new(z, del1, del1, vec![], vec![]);
-        let mut right_string = String::new(z, del2, del3, left_filters, right_filters);
-
-        left_string.connect_right(Rc::clone(&right_string.l));
-        right_string.connect_left(Rc::clone(&left_string.r));
-
-        left_string.init();
-        right_string.init();
+        let left_string = String::new(z, del1, del1, vec![], vec![]);
+        let right_string = String::new(z, del2, del3, left_filters, right_filters);
 
         StringHammerSoundboard {
             left_string,
             right_string,
+            // string_impedance: z,
             soundboard_impedance: zb,
         }
     }
@@ -221,11 +164,11 @@ impl StringHammerSoundboard {
     pub fn go_soundboard(&mut self, load: f32) -> f32 {
         self.right_string.loadr += load;
 
-        self.left_string.loadr += self.left_string.alpharthis * self.left_string.r.borrow().a[1];
-        self.left_string.loadr += self.left_string.alphar[0] * self.right_string.l.borrow().a[0];
+        self.left_string.loadr += self.left_string.r.borrow().a[1];
+        self.left_string.loadr += self.right_string.l.borrow().a[0];
 
-        self.right_string.loadl += self.right_string.alphalthis * self.right_string.l.borrow().a[0];
-        self.right_string.loadl += self.right_string.alphal[0] * self.left_string.r.borrow().a[1];
+        self.right_string.loadl += self.right_string.l.borrow().a[0];
+        self.right_string.loadl += self.left_string.r.borrow().a[1];
 
         let a = self.left_string.loadl - self.left_string.l.borrow().a[0];
         self.left_string.l.borrow_mut().a[1] = a;
