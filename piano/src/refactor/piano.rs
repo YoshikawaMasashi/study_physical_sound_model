@@ -1,5 +1,5 @@
-use super::string::StringHammerSoundboard;
 use super::hammer::Hammer;
+use super::string::StringHammerSoundboard;
 
 pub struct Piano {
     z: f32,

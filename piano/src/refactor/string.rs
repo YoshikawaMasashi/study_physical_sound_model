@@ -6,10 +6,9 @@ use super::super::loss::loss;
 use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
-
 struct StringNode {
-    z: f32, // インピーダンス
-    load: f32, // 力の単位で入っているっぽい
+    z: f32,      // インピーダンス
+    load: f32,   // 力の単位で入っているっぽい
     a: [f32; 2], // たぶんvelocity 0: rightからleftに行く方向 1: leftからrightに行く方向
 }
 
@@ -77,7 +76,7 @@ impl String {
             d,
             impedance,
             left_filters,
-            right_filters
+            right_filters,
         }
     }
 
@@ -116,7 +115,7 @@ impl String {
     fn do_delay(&mut self) {
         let mut dar: f32 = *self.d[0].last();
         let mut dal: f32 = *self.d[1].last();
-        
+
         let filter_num = self.left_filters.len();
         for i in 0..filter_num {
             dar = self.left_filters[i].filter(dar);
@@ -136,7 +135,7 @@ impl String {
 pub struct StringHammerSoundboard {
     left_string: String,
     right_string: String,
-    soundboard_impedance: f32
+    soundboard_impedance: f32,
 }
 
 impl StringHammerSoundboard {
@@ -205,7 +204,8 @@ impl StringHammerSoundboard {
         right_string.init();
 
         StringHammerSoundboard {
-            left_string,right_string,
+            left_string,
+            right_string,
             soundboard_impedance: zb,
         }
     }
@@ -217,7 +217,7 @@ impl StringHammerSoundboard {
     pub fn go_hammer(&mut self, load: f32) -> f32 {
         self.left_string.loadr += load;
         self.right_string.loadl += load;
-        
+
         self.left_string.do_delay();
         self.right_string.do_delay();
         self.right_string.r.borrow().a[1]
@@ -227,22 +227,19 @@ impl StringHammerSoundboard {
         self.right_string.loadr += load;
 
         self.left_string.loadr += self.left_string.alpharthis * self.left_string.r.borrow().a[1];
-        for k in 0..self.left_string.nr {
-            self.left_string.loadr += self.left_string.cr[k].borrow().load;
-            self.left_string.loadr += self.left_string.alphar[k] * self.left_string.cr[k].borrow().a[0];
-        }
+        self.left_string.loadr += self.left_string.cr[0].borrow().load;
+        self.left_string.loadr += self.left_string.alphar[0] * self.left_string.cr[0].borrow().a[0];
 
         self.right_string.loadl += self.right_string.alphalthis * self.right_string.l.borrow().a[0];
-        for k in 0..self.right_string.nl {
-            self.right_string.loadl += self.right_string.cl[k].borrow().load;
-            self.right_string.loadl += self.right_string.alphal[k] * self.right_string.cl[k].borrow().a[1];
-        }
+        self.right_string.loadl += self.right_string.cl[0].borrow().load;
+        self.right_string.loadl +=
+            self.right_string.alphal[0] * self.right_string.cl[0].borrow().a[1];
 
         let a = self.left_string.loadl - self.left_string.l.borrow().a[0];
         self.left_string.l.borrow_mut().a[1] = a;
         let a = self.left_string.loadr - self.left_string.r.borrow().a[1];
         self.left_string.r.borrow_mut().a[0] = a;
-        
+
         let a = self.right_string.loadl - self.right_string.l.borrow().a[0];
         self.right_string.l.borrow_mut().a[1] = a;
         let a = self.right_string.loadr - self.right_string.r.borrow().a[1];
@@ -252,6 +249,7 @@ impl StringHammerSoundboard {
         self.right_string.loadr = 0.0;
         self.left_string.loadr = 0.0;
 
-        self.right_string.r.borrow().a[1] * 2.0 * self.right_string.impedance / self.soundboard_impedance
+        self.right_string.r.borrow().a[1] * 2.0 * self.right_string.impedance
+            / self.soundboard_impedance
     }
 }
