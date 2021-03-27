@@ -6,15 +6,41 @@ use super::super::loss::loss;
 use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
+struct DelayLine {
+    history_buffer: RingBuffer<f32>,
+    filters: Vec<Filter<f32>>,
+}
+
+impl DelayLine {
+    fn new(size: usize, filters: Vec<Filter<f32>>) -> Self {
+        DelayLine{
+            history_buffer: RingBuffer::<f32>::new(size, 0.0),
+            filters
+        }
+    }
+
+    fn do_delay(&mut self, input: f32) -> f32 {
+        let mut x: f32 = *self.history_buffer.last();
+
+        let filter_num = self.filters.len();
+        for i in 0..filter_num {
+            x = self.filters[i].filter(x);
+        }
+
+        self.history_buffer.push(input);
+
+        x
+    }
+}
+
 struct String {
     l: Rc<RefCell<[f32; 2]>>,
     r: Rc<RefCell<[f32; 2]>>,
     loadl: f32,
     loadr: f32,
-    d: [RingBuffer<f32>; 2],
     impedance: f32,
-    left_filters: Vec<Filter<f32>>,
-    right_filters: Vec<Filter<f32>>,
+    to_left_delay_line: DelayLine,
+    to_right_delay_line: DelayLine,
 }
 
 impl String {
@@ -25,10 +51,6 @@ impl String {
         left_filters: Vec<Filter<f32>>,
         right_filters: Vec<Filter<f32>>,
     ) -> String {
-        let d = [
-            RingBuffer::<f32>::new(del1, 0.0),
-            RingBuffer::<f32>::new(del2, 0.0),
-        ];
         let l = Rc::new(RefCell::new([0.0, 0.0]));
         let r = Rc::new(RefCell::new([0.0, 0.0]));
 
@@ -37,30 +59,15 @@ impl String {
             r,
             loadl: 0.0,
             loadr: 0.0,
-            d,
             impedance,
-            left_filters,
-            right_filters,
+            to_left_delay_line: DelayLine::new(del1, left_filters),
+            to_right_delay_line: DelayLine::new(del2, right_filters),
         }
     }
 
     fn do_delay(&mut self) {
-        let mut dar: f32 = *self.d[0].last();
-        let mut dal: f32 = *self.d[1].last();
-
-        let filter_num = self.left_filters.len();
-        for i in 0..filter_num {
-            dar = self.left_filters[i].filter(dar);
-        }
-        let filter_num = self.right_filters.len();
-        for i in 0..filter_num {
-            dal = self.right_filters[i].filter(dal);
-        }
-
-        self.l.borrow_mut()[0] = dar;
-        self.r.borrow_mut()[1] = dal;
-        self.d[0].push(self.r.borrow()[0]);
-        self.d[1].push(self.l.borrow()[1]);
+        self.l.borrow_mut()[0] = self.to_left_delay_line.do_delay(self.r.borrow()[0]);
+        self.r.borrow_mut()[1] = self.to_right_delay_line.do_delay(self.l.borrow()[1]);
     }
 }
 
