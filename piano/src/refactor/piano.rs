@@ -81,7 +81,6 @@ impl Piano {
         Piano {
             z,
             zb,
-
             nstrings,
             strings,
             hammers,

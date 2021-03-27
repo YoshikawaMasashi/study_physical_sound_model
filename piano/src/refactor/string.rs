@@ -7,9 +7,9 @@ use super::super::ring_buffer::RingBuffer;
 use super::super::thirian::{thirian, thirian_dispersion};
 
 struct DelayLineNode {
-    z: f32,
-    load: f32,
-    a: [f32; 2],
+    z: f32, // インピーダンス
+    load: f32, // 力の単位で入っているっぽい
+    a: [f32; 2], // たぶんvelocity
 }
 
 impl DelayLineNode {
@@ -27,6 +27,8 @@ struct DelayLine {
     nr: usize,
     cl: Vec<Rc<RefCell<DelayLineNode>>>, // cはconnectのl
     cr: Vec<Rc<RefCell<DelayLineNode>>>,
+    zl: Vec<f32>,
+    zr: Vec<f32>,
     l: Rc<RefCell<DelayLineNode>>,
     r: Rc<RefCell<DelayLineNode>>,
     loadl: f32,
@@ -38,11 +40,12 @@ struct DelayLine {
     d: [RingBuffer<f32>; 2],
     filters: Rc<RefCell<Filters>>,
     commute: bool,
+    impedance: f32,
 }
 
 impl DelayLine {
     fn new(
-        z: f32,
+        impedance: f32,
         del1: usize,
         del2: usize,
         commute: bool,
@@ -52,14 +55,16 @@ impl DelayLine {
             RingBuffer::<f32>::new(del1, 0.0),
             RingBuffer::<f32>::new(del2, 0.0),
         ];
-        let l = Rc::new(RefCell::new(DelayLineNode::new(z)));
-        let r = Rc::new(RefCell::new(DelayLineNode::new(z)));
+        let l = Rc::new(RefCell::new(DelayLineNode::new(impedance)));
+        let r = Rc::new(RefCell::new(DelayLineNode::new(impedance)));
 
         DelayLine {
             nl: 0,
             nr: 0,
             cl: vec![],
             cr: vec![],
+            zl: vec![],
+            zr: vec![],
             l,
             r,
             loadl: 0.0,
@@ -71,6 +76,7 @@ impl DelayLine {
             d,
             filters,
             commute,
+            impedance,
         }
     }
 
@@ -95,11 +101,13 @@ impl DelayLine {
     }
 
     fn connect_left(&mut self, l: Rc<RefCell<DelayLineNode>>) {
+        self.zl.push(l.borrow().z);
         self.cl.push(l);
         self.nl += 1;
     }
 
     fn connect_right(&mut self, r: Rc<RefCell<DelayLineNode>>) {
+        self.zr.push(r.borrow().z);
         self.cr.push(r);
         self.nr += 1;
     }
@@ -161,7 +169,10 @@ pub struct Filters {
 }
 
 pub struct String {
-    d: [DelayLine; 4],
+    left_string: DelayLine,
+    right_string: DelayLine,
+    soundboard: DelayLine,
+    hammer: DelayLine,
 }
 
 impl String {
@@ -173,8 +184,8 @@ impl String {
         c3: f32,
         b: f32,
         z: f32,
-        zb: f32,
-        zh: f32,
+        zb: f32, // board
+        zh: f32, // hammer
     ) -> String {
         let deltot = fs / f;
         let mut del1 = (inpos * 0.5 * deltot) as usize;
@@ -221,53 +232,53 @@ impl String {
             fracdelay,
         }));
 
-        let mut d0 = DelayLine::new(z, del1, del1, false, Rc::clone(&filters));
-        let mut d1 = DelayLine::new(z, del2, del3, true, Rc::clone(&filters));
-        let mut d2 = DelayLine::new(zb, 0, 0, false, Rc::clone(&filters));
-        let mut d3 = DelayLine::new(zh, 0, 0, false, Rc::clone(&filters));
+        let mut left_string = DelayLine::new(z, del1, del1, false, Rc::clone(&filters));
+        let mut right_string = DelayLine::new(z, del2, del3, true, Rc::clone(&filters));
+        let mut soundboard = DelayLine::new(zb, 0, 0, false, Rc::clone(&filters));
+        let mut hammer = DelayLine::new(zh, 0, 0, false, Rc::clone(&filters));
 
-        d0.connect_right(Rc::clone(&d1.l));
-        d1.connect_left(Rc::clone(&d0.r));
-        d1.connect_right(Rc::clone(&d2.l));
-        d2.connect_left(Rc::clone(&d1.r));
+        left_string.connect_right(Rc::clone(&right_string.l));
+        right_string.connect_left(Rc::clone(&left_string.r));
+        right_string.connect_right(Rc::clone(&soundboard.l));
+        soundboard.connect_left(Rc::clone(&right_string.r));
 
-        d0.connect_right(Rc::clone(&d3.l));
-        d1.connect_left(Rc::clone(&d3.l));
-        d3.connect_left(Rc::clone(&d0.r));
-        d3.connect_left(Rc::clone(&d1.l));
+        left_string.connect_right(Rc::clone(&hammer.l));
+        right_string.connect_left(Rc::clone(&hammer.l));
+        hammer.connect_left(Rc::clone(&left_string.r));
+        hammer.connect_left(Rc::clone(&right_string.l));
 
-        d0.init();
-        d1.init();
-        d2.init();
-        d3.init();
+        left_string.init();
+        right_string.init();
+        soundboard.init();
+        hammer.init();
 
         String {
-            d: [d0, d1, d2, d3],
+            left_string,right_string,soundboard,hammer
         }
     }
 
     pub fn input_velocity(&self) -> f32 {
-        self.d[1].l.borrow().a[0] + self.d[0].r.borrow().a[1]
+        self.right_string.l.borrow().a[0] + self.left_string.r.borrow().a[1]
     }
 
     pub fn go_hammer(&mut self, load: f32) -> f32 {
-        self.d[3].l.borrow_mut().load = load;
-        for k in 0..2 {
-            self.d[k].do_delay();
-        }
-        self.d[1].r.borrow().a[1]
+        self.hammer.l.borrow_mut().load = load;
+        self.left_string.do_delay();
+        self.right_string.do_delay();
+        self.right_string.r.borrow().a[1]
     }
 
     pub fn go_soundboard(&mut self, load: f32) -> f32 {
-        self.d[2].l.borrow_mut().load = load;
-        for k in 0..3 {
-            self.d[k].do_load();
-        }
+        self.soundboard.l.borrow_mut().load = load;
 
-        for k in 0..3 {
-            self.d[k].update();
-        }
+        self.left_string.do_load();
+        self.right_string.do_load();
+        self.soundboard.do_load();
 
-        self.d[2].l.borrow().a[1]
+        self.left_string.update();
+        self.right_string.update();
+        self.soundboard.update();
+
+        self.soundboard.l.borrow().a[1]
     }
 }
