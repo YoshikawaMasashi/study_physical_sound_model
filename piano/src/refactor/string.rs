@@ -9,7 +9,7 @@ use super::super::thirian::{thirian, thirian_dispersion};
 struct DelayLineNode {
     z: f32, // インピーダンス
     load: f32, // 力の単位で入っているっぽい
-    a: [f32; 2], // たぶんvelocity
+    a: [f32; 2], // たぶんvelocity 0: rightからleftに行く方向 1: leftからrightに行く方向
 }
 
 impl DelayLineNode {
@@ -170,7 +170,7 @@ pub struct Filters {
 pub struct String {
     left_string: DelayLine,
     right_string: DelayLine,
-    soundboard: DelayLine,
+    soundboard_impedance: f32
 }
 
 impl String {
@@ -231,19 +231,16 @@ impl String {
 
         let mut left_string = DelayLine::new(z, del1, del1, false, Rc::clone(&filters));
         let mut right_string = DelayLine::new(z, del2, del3, true, Rc::clone(&filters));
-        let mut soundboard = DelayLine::new(zb, 0, 0, false, Rc::clone(&filters));
 
         left_string.connect_right(Rc::clone(&right_string.l));
         right_string.connect_left(Rc::clone(&left_string.r));
-        right_string.connect_right(Rc::clone(&soundboard.l));
-        soundboard.connect_left(Rc::clone(&right_string.r));
 
         left_string.init();
         right_string.init();
-        soundboard.init();
 
         String {
-            left_string,right_string,soundboard
+            left_string,right_string,
+            soundboard_impedance: zb,
         }
     }
 
@@ -265,12 +262,10 @@ impl String {
 
         self.left_string.do_load();
         self.right_string.do_load();
-        self.soundboard.do_load();
 
         self.left_string.update();
         self.right_string.update();
-        self.soundboard.update();
 
-        self.soundboard.l.borrow().a[1]
+        self.right_string.r.borrow().a[1] * 2.0 * self.right_string.impedance / self.soundboard_impedance
     }
 }
