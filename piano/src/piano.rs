@@ -3,7 +3,6 @@ use super::loss::loss;
 use super::string::String;
 use super::thirian::{thirian, thirian_dispersion};
 
-
 /*
 F+ \Sigma{Z_i(v_i^- - v_i^+}) = 0
 v_i^- + v_i^+ = v
@@ -16,7 +15,6 @@ velocity at junction `v` is dual_force_of_input devided by sum of impedance.
 and output is determined by this `v`.
 */
 
-
 pub struct Piano {
     string_impedance: f32,
     soundboard_impedance: f32,
@@ -24,7 +22,6 @@ pub struct Piano {
     nstrings: usize,
     left_strings: Vec<String>,
     right_strings: Vec<String>,
-    dual_force_of_input_at_string_hammer: Vec<f32>,
     hammers: Vec<Hammer>,
 }
 
@@ -76,7 +73,6 @@ impl Piano {
         const TUNE: [f32; 3] = [1.0, 1.0003, 0.9996];
         let mut left_strings = vec![];
         let mut right_strings = vec![];
-        let mut dual_force_of_input_at_string_hammer = vec![];
         for i in 0..nstrings {
             let (ls, rs) = Self::new_string(
                 note_frequency * TUNE[i],
@@ -89,7 +85,6 @@ impl Piano {
             );
             left_strings.push(ls);
             right_strings.push(rs);
-            dual_force_of_input_at_string_hammer.push(0.0);
         }
 
         let alpha = 0.1e-4 * f32::ln(note_frequency / f0) / f32::ln(4192.0 / f0);
@@ -112,7 +107,6 @@ impl Piano {
             nstrings,
             left_strings,
             right_strings,
-            dual_force_of_input_at_string_hammer,
             hammers,
         }
     }
@@ -186,46 +180,40 @@ impl Piano {
         self.right_strings[string_idx].do_delay();
     }
 
-    fn go_soundboard(&mut self, string_idx: usize, load: f32) -> f32 {
-        self.right_strings[string_idx].loadr += load;
-
-        let a =
-            self.left_strings[string_idx].loadl - self.left_strings[string_idx].v_at_left_to_left;
-        self.left_strings[string_idx].v_at_left_to_right = a;
-
-        let a = self.right_strings[string_idx].loadr
-            - self.right_strings[string_idx].v_at_right_to_right;
-        self.right_strings[string_idx].v_at_right_to_left = a;
-
-        self.right_strings[string_idx].v_at_right_to_right
-            * 2.0
-            * self.right_strings[string_idx].impedance
-            / (self.soundboard_impedance + (self.nstrings - 1) as f32 * self.string_impedance)
-    }
-
     pub fn go(&mut self) -> f32 {
+        let mut dual_force_of_input_at_string_soundboard: f32 = 0.0;
         for i in 0..self.nstrings {
             self.right_strings[i].loadr = 0.0;
             self.do_delay(i);
         }
 
-        let mut load = 0.0;
         for i in 0..self.nstrings {
             let vin = self.input_velocity(i);
             let hammer_force = self.hammers[i].load(vin);
-            self.dual_force_of_input_at_string_hammer[i] = 2.0 * self.string_impedance * vin + hammer_force;
+            let dual_force_of_input_at_string_hammer: f32 =
+                2.0 * self.string_impedance * vin + hammer_force;
 
-            let velocity_at_string_hammer = self.dual_force_of_input_at_string_hammer[i] / (2.0 * self.string_impedance);
-            self.left_strings[i].v_at_right_to_left = velocity_at_string_hammer - self.left_strings[i].v_at_right_to_right; 
-            self.right_strings[i].v_at_left_to_right = velocity_at_string_hammer - self.right_strings[i].v_at_left_to_left;
+            let velocity_at_string_hammer =
+                dual_force_of_input_at_string_hammer / (2.0 * self.string_impedance);
+            self.left_strings[i].v_at_right_to_left =
+                velocity_at_string_hammer - self.left_strings[i].v_at_right_to_right;
+            self.right_strings[i].v_at_left_to_right =
+                velocity_at_string_hammer - self.right_strings[i].v_at_left_to_left;
+        }
 
-            load += (2.0 * self.string_impedance * self.right_strings[i].v_at_right_to_right)
-                / (self.string_impedance * self.nstrings as f32 + self.soundboard_impedance);
+        for i in 0..self.nstrings {
+            dual_force_of_input_at_string_soundboard +=
+                2.0 * self.string_impedance * self.right_strings[i].v_at_right_to_right;
         }
 
         let mut output = 0.0;
+        let velocity_at_string_soundboard = dual_force_of_input_at_string_soundboard
+            / (self.nstrings as f32 * self.string_impedance + self.soundboard_impedance);
         for i in 0..self.nstrings {
-            output += self.go_soundboard(i, load);
+            output += velocity_at_string_soundboard;
+            self.left_strings[i].v_at_left_to_right = -self.left_strings[i].v_at_left_to_left;
+            self.right_strings[i].v_at_right_to_left =
+                velocity_at_string_soundboard - self.right_strings[i].v_at_right_to_right;
         }
 
         output
