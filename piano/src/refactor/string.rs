@@ -38,9 +38,9 @@ struct DelayLine {
     alphal: Vec<f32>,
     alphar: Vec<f32>,
     d: [RingBuffer<f32>; 2],
-    filters: Rc<RefCell<Filters>>,
-    commute: bool,
     impedance: f32,
+    left_filters: Vec<Filter<f32>>,
+    right_filters: Vec<Filter<f32>>,
 }
 
 impl DelayLine {
@@ -48,8 +48,8 @@ impl DelayLine {
         impedance: f32,
         del1: usize,
         del2: usize,
-        commute: bool,
-        filters: Rc<RefCell<Filters>>,
+        left_filters: Vec<Filter<f32>>,
+        right_filters: Vec<Filter<f32>>,
     ) -> DelayLine {
         let d = [
             RingBuffer::<f32>::new(del1, 0.0),
@@ -74,9 +74,9 @@ impl DelayLine {
             alphal: vec![],
             alphar: vec![],
             d,
-            filters,
-            commute,
             impedance,
+            left_filters,
+            right_filters
         }
     }
 
@@ -141,30 +141,22 @@ impl DelayLine {
 
     fn update(&mut self) {
         let mut a = self.loadl - self.l.borrow().a[0];
-        if self.commute {
-            let m = self.filters.borrow().dispersion.len();
-            for i in 0..m {
-                a = self.filters.borrow_mut().dispersion[i].filter(a);
-            }
+        let filter_num = self.left_filters.len();
+        for i in 0..filter_num {
+            a = self.left_filters[i].filter(a);
         }
         self.l.borrow_mut().a[1] = a;
 
         a = self.loadr - self.r.borrow().a[1];
-        if self.commute {
-            a = self.filters.borrow_mut().lowpass.filter(a);
-            a = self.filters.borrow_mut().fracdelay.filter(a);
+        let filter_num = self.right_filters.len();
+        for i in 0..filter_num {
+            a = self.right_filters[i].filter(a);
         }
         self.r.borrow_mut().a[0] = a;
 
         self.loadl = 0.0;
         self.loadr = 0.0;
     }
-}
-
-pub struct Filters {
-    dispersion: Vec<Filter<f32>>,
-    lowpass: Filter<f32>,
-    fracdelay: Filter<f32>,
 }
 
 pub struct String {
@@ -190,13 +182,18 @@ impl String {
             del1 = 1;
         }
 
+        let mut left_filters = vec![];
+        let mut right_filters = vec![];
+
         let m = if f > 400.0 { 1 } else { 4 };
         let mut dispersion = vec![];
         for _ in 0..m {
             dispersion.push(thirian_dispersion(b, f, m));
+            left_filters.push(thirian_dispersion(b, f, m));
         }
         let dispersion_delay = m as f32 * dispersion[0].groupdelay(f, fs);
         let lowpass = loss(f, c1, c3);
+        right_filters.push(loss(f, c1, c3));
         let lowpass_delay = lowpass.groupdelay(f, fs);
 
         let mut del2 = (0.5 * (deltot - 2.0 * (del1 as f32)) - dispersion_delay) as usize;
@@ -217,20 +214,15 @@ impl String {
                 + lowpass_delay);
         println!("D: {}", total_delay);
         let fracdelay = thirian(total_delay, total_delay as usize);
+        right_filters.push(thirian(total_delay, total_delay as usize));
         let tuning_delay = fracdelay.groupdelay(f, fs);
 
         println!("total delay = {}/{}, leftdel = {}/{}, rightdel = {}/{}, dispersion delay = {}, lowpass delay = {}, fractional delay = {}/{}",
             del1 as f32+del1 as f32+del2 as f32+del3 as f32+dispersion_delay+lowpass_delay+tuning_delay,deltot, del1, del1, del2, del3, dispersion_delay, lowpass_delay, tuning_delay, total_delay
         );
 
-        let filters = Rc::new(RefCell::new(Filters {
-            dispersion,
-            lowpass,
-            fracdelay,
-        }));
-
-        let mut left_string = DelayLine::new(z, del1, del1, false, Rc::clone(&filters));
-        let mut right_string = DelayLine::new(z, del2, del3, true, Rc::clone(&filters));
+        let mut left_string = DelayLine::new(z, del1, del1, vec![], vec![]);
+        let mut right_string = DelayLine::new(z, del2, del3, left_filters, right_filters);
 
         left_string.connect_right(Rc::clone(&right_string.l));
         right_string.connect_left(Rc::clone(&left_string.r));
