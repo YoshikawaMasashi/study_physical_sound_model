@@ -25,9 +25,7 @@ impl DWGNode {
 struct DWG {
     nl: usize,
     nr: usize,
-    pl: Vec<usize>,
-    pr: Vec<usize>,
-    cl: Vec<Rc<RefCell<DWGNode>>>,
+    cl: Vec<Rc<RefCell<DWGNode>>>, // cはconnectのl
     cr: Vec<Rc<RefCell<DWGNode>>>,
     l: Rc<RefCell<DWGNode>>,
     r: Rc<RefCell<DWGNode>>,
@@ -60,8 +58,6 @@ impl DWG {
         DWG {
             nl: 0,
             nr: 0,
-            pl: vec![],
-            pr: vec![],
             cl: vec![],
             cr: vec![],
             l,
@@ -98,24 +94,14 @@ impl DWG {
         }
     }
 
-    fn connect_left_with_pol(&mut self, l: Rc<RefCell<DWGNode>>, polarity: usize) {
+    fn connect_left(&mut self, l: Rc<RefCell<DWGNode>>) {
         self.cl.push(l);
-        self.pl.push(polarity);
         self.nl += 1;
     }
 
-    fn connect_right_with_pol(&mut self, r: Rc<RefCell<DWGNode>>, polarity: usize) {
-        self.cr.push(r);
-        self.pr.push(polarity);
-        self.nr += 1;
-    }
-
-    fn connect_left(&mut self, l: Rc<RefCell<DWGNode>>) {
-        self.connect_left_with_pol(l, 0);
-    }
-
     fn connect_right(&mut self, r: Rc<RefCell<DWGNode>>) {
-        self.connect_right_with_pol(r, 0);
+        self.cr.push(r);
+        self.nr += 1;
     }
 
     fn do_delay(&mut self) {
@@ -133,9 +119,8 @@ impl DWG {
         } else {
             self.loadl = self.alphalthis * self.l.borrow().a[0];
             for k in 0..self.nl {
-                let polarity = if self.pl[k] != 0 { 0 } else { 1 };
                 self.loadl += self.cl[k].borrow().load;
-                self.loadl += self.alphal[k] * self.cl[k].borrow().a[polarity];
+                self.loadl += self.alphal[k] * self.cl[k].borrow().a[1];
             }
         }
 
@@ -144,9 +129,8 @@ impl DWG {
         } else {
             self.loadr = self.alpharthis * self.r.borrow().a[1];
             for k in 0..self.nr {
-                let polarity = if self.pr[k] != 0 { 1 } else { 0 };
                 self.loadr += self.cr[k].borrow().load;
-                self.loadr += self.alphar[k] * self.cr[k].borrow().a[polarity];
+                self.loadr += self.alphar[k] * self.cr[k].borrow().a[0];
             }
         }
     }
